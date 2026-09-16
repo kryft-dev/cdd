@@ -138,6 +138,42 @@ func TestCount_PerProject(t *testing.T) {
 	}
 }
 
+func TestCounts_AllProjectsInOneRead(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "history")
+
+	h, err := history.Open(path, 1000)
+	if err != nil {
+		t.Fatalf("Open: unexpected error: %v", err)
+	}
+
+	for range 3 {
+		if err := h.Record("tools/cdd"); err != nil {
+			t.Fatalf("Record: unexpected error: %v", err)
+		}
+	}
+	if err := h.Record("tools/other"); err != nil {
+		t.Fatalf("Record: unexpected error: %v", err)
+	}
+
+	counts, err := h.Counts()
+	if err != nil {
+		t.Fatalf("Counts: unexpected error: %v", err)
+	}
+	want := map[string]int{"tools/cdd": 3, "tools/other": 1}
+	if len(counts) != len(want) {
+		t.Fatalf("Counts: got %d Projects, want %d", len(counts), len(want))
+	}
+	for project, n := range want {
+		if counts[project] != n {
+			t.Errorf("Counts[%q] = %d, want %d", project, counts[project], n)
+		}
+	}
+	if counts["never/visited"] != 0 {
+		t.Errorf("Counts of an unvisited Project = %d, want 0", counts["never/visited"])
+	}
+}
+
 func TestReadVisits_SkipsMalformedLines(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "history")

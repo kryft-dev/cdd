@@ -98,3 +98,19 @@ func (h *History) Count(project string) (int, error) {
 	}
 	return n, nil
 }
+
+// Counts returns the number of Visit lines recorded for every Project in
+// one read of History, for the Picker's preview. Malformed lines are
+// skipped silently.
+func (h *History) Counts() (map[string]int, error) {
+	visits, err := readVisits(h.path)
+	if err != nil {
+		return nil, fmt.Errorf("history: counts: %w", err)
+	}
+
+	counts := make(map[string]int, len(visits))
+	for _, v := range visits {
+		counts[v.Project]++
+	}
+	return counts, nil
+}
