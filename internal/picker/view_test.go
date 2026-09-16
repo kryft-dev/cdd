@@ -6,6 +6,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/kryft-dev/cdd/internal/picker"
 )
@@ -92,5 +93,40 @@ func TestModel_View_ListWindowedToHeight(t *testing.T) {
 	last := rows[len(rows)-1].Project.Name
 	if !strings.Contains(out, last) {
 		t.Errorf("after moving the cursor to the last row, View() output does not contain %q (row scrolled out of the window)", last)
+	}
+}
+
+// TestModel_View_RowsShareEqualWidth verifies that every list row renders
+// to the same display width, selected or not: a fixed-width caret gutter
+// on every row, not a caret that shrinks the selected row by a column.
+func TestModel_View_RowsShareEqualWidth(t *testing.T) {
+	rows := []picker.Row{
+		{Project: picker.Project{Kind: "work", Name: "alpha", Path: "/root/work/alpha"}},
+		{Project: picker.Project{Kind: "work", Name: "beta", Path: "/root/work/beta"}},
+		{Project: picker.Project{Kind: "work", Name: "gamma", Path: "/root/work/gamma"}},
+	}
+	m := picker.NewModel(rows, noopStatus, picker.Options{})
+	// A narrow terminal keeps the preview pane from being drawn, so each
+	// Project name appears exactly once, in its list row.
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 30, Height: 40})
+	m = next.(picker.Model)
+
+	names := []string{"alpha", "beta", "gamma"}
+	var widths []int
+	out := m.View().Content
+	for _, l := range strings.Split(out, "\n") {
+		for _, n := range names {
+			if strings.Contains(l, n) {
+				widths = append(widths, lipgloss.Width(l))
+			}
+		}
+	}
+	if len(widths) != len(names) {
+		t.Fatalf("found %d row lines, want %d", len(widths), len(names))
+	}
+	for i := 1; i < len(widths); i++ {
+		if widths[i] != widths[0] {
+			t.Errorf("row %d width = %d, want %d (same as row 0, selected or not)", i, widths[i], widths[0])
+		}
 	}
 }

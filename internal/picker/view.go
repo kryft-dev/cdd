@@ -129,10 +129,10 @@ func (m Model) listView(t theme, groups []kindGroup, rows []match, lay Layout, n
 // rowView renders one Project row: NAME  STATUS  LAST VISIT, with a caret
 // and accent name when selected.
 func (m Model) rowView(t theme, mt match, selected bool, lay Layout, now time.Time) string {
-	caret := "  "
+	caret := "   "
 	nameStyle := lipgloss.NewStyle().Bold(true)
 	if selected {
-		caret = t.fg(t.accent).Bold(true).Render("›")
+		caret = t.fg(t.accent).Bold(true).Render(" › ")
 		nameStyle = nameStyle.Foreground(t.accent)
 	}
 
@@ -152,7 +152,7 @@ func (m Model) rowView(t theme, mt match, selected bool, lay Layout, now time.Ti
 	}
 	rel = padLeft(t.muted_().Render(rel), lay.TimeWidth)
 
-	return caret + " " + name + "  " + status + "  " + rel
+	return caret + name + "  " + status + "  " + rel
 }
 
 // padRight/padLeft pad plain or styled strings to a display width.
