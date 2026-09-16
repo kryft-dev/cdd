@@ -1,7 +1,6 @@
 package shell_test
 
 import (
-	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -202,7 +201,7 @@ func runShell(t *testing.T, shellName, dir, fakeBinDir, stdin string) (string, e
 
 	shellPath, err := exec.LookPath(shellName)
 	if err != nil {
-		return "", errors.New(shellName + " not installed: " + err.Error())
+		t.Skipf("%s not installed: %v", shellName, err)
 	}
 
 	cmd := exec.Command(shellPath)
