@@ -130,3 +130,25 @@ func TestModel_View_RowsShareEqualWidth(t *testing.T) {
 		}
 	}
 }
+
+// TestModel_View_FrameMatchesTerminalHeight pins the frame to exactly the
+// terminal height, with and without the preview pane. One line taller and
+// Bubble Tea's inline renderer drops the filter line off the top.
+func TestModel_View_FrameMatchesTerminalHeight(t *testing.T) {
+	rows := manyRows(11)
+	for _, width := range []int{110, 45} {
+		for _, height := range []int{40, 30, 24, 14, 9} {
+			m := picker.NewModel(rows, noopStatus, picker.Options{})
+			next, _ := m.Update(tea.WindowSizeMsg{Width: width, Height: height})
+			m = next.(picker.Model)
+
+			lines := strings.Split(m.View().Content, "\n")
+			if len(lines) != height {
+				t.Errorf("View() at %dx%d produced %d lines, want exactly %d", width, height, len(lines), height)
+			}
+			if !strings.Contains(lines[0], "type to filter") {
+				t.Errorf("View() at %dx%d: first line %q is not the filter line", width, height, lines[0])
+			}
+		}
+	}
+}
