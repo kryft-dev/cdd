@@ -54,13 +54,16 @@ func (m Model) View() tea.View {
 	var b strings.Builder
 	b.WriteString(m.filterLine(t))
 	b.WriteString("\n")
-	b.WriteString(m.listView(t, groups, rows, lay, now))
 
+	list := m.listView(t, groups, rows, lay, now)
 	if lay.ShowPreview {
-		preview := m.previewView(t, rows, lay, now)
-		list := b.String()
-		b.Reset()
-		b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, list, " ", preview))
+		// The preview column is joined under a matching blank line so its
+		// box's top border lands on the list's first row, not on the
+		// filter line above.
+		right := "\n" + m.previewView(t, rows, lay, now)
+		b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, list, " ", right))
+	} else {
+		b.WriteString(list)
 	}
 
 	b.WriteString("\n")
