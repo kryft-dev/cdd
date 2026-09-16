@@ -1,0 +1,48 @@
+name: Bug report
+description: Report a problem with cdd
+title: "bug: "
+labels:
+  - needs-triage
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug, including which Project or Root was involved.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What you expected to happen instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: The exact commands or key presses that trigger the bug.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: cdd version
+      description: Output of `cdd --version` (or the commit SHA if built from source).
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system and shell
+      description: e.g. macOS 15, zsh
+    validations:
+      required: true
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Logs, screenshots, or anything else that might help.
+    validations:
+      required: false
