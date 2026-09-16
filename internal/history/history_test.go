@@ -3,6 +3,7 @@ package history_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -160,5 +161,35 @@ func TestReadVisits_SkipsMalformedLines(t *testing.T) {
 	}
 	if len(latest) != 2 {
 		t.Fatalf("Latest: got %d visits, want 2 (malformed lines skipped)", len(latest))
+	}
+}
+
+// TestReadVisits_SkipsOverLongMalformedLine is the regression case for a
+// corrupt line beyond bufio.Scanner's default 64 KiB token limit: it must
+// be skipped as malformed like any other, not abort the read for the whole
+// History file.
+func TestReadVisits_SkipsOverLongMalformedLine(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "history")
+
+	garbage := strings.Repeat("x", 100*1024) // well past the 64 KiB limit
+	content := "2026-09-16T14:03:22Z\tjump\ttools/cdd\n" +
+		garbage + "\n" +
+		"2026-09-16T14:05:00Z\tjump\ttools/good\n"
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("WriteFile: unexpected error: %v", err)
+	}
+
+	h, err := history.Open(path, 1000)
+	if err != nil {
+		t.Fatalf("Open: unexpected error: %v", err)
+	}
+
+	latest, err := h.Latest()
+	if err != nil {
+		t.Fatalf("Latest: unexpected error: %v", err)
+	}
+	if len(latest) != 2 {
+		t.Fatalf("Latest: got %d visits, want 2 (over-long line skipped, surrounding lines parsed)", len(latest))
 	}
 }
