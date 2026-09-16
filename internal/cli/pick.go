@@ -61,9 +61,11 @@ func pickRunE(cmd *cobra.Command, args []string) error {
 	}
 
 	out := cmd.OutOrStdout()
-	fmt.Fprintln(out, abs)
+	if _, err := fmt.Fprintln(out, abs); err != nil {
+		return err
+	}
 	if isTerminal(out) {
-		fmt.Fprintln(cmd.ErrOrStderr(), initHint)
+		_, _ = fmt.Fprintln(cmd.ErrOrStderr(), initHint)
 	}
 	return nil
 }

@@ -38,8 +38,8 @@ func newScanCmd() *cobra.Command {
 				return err
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "Seeded %d Visits across %d Projects\n", summary.Seeded, summary.Projects)
-			return nil
+			_, err = fmt.Fprintf(cmd.OutOrStdout(), "Seeded %d Visits across %d Projects\n", summary.Seeded, summary.Projects)
+			return err
 		},
 	}
 }

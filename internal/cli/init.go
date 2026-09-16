@@ -25,8 +25,8 @@ func newInitCmd() *cobra.Command {
 			if err != nil {
 				return newUsageError(err)
 			}
-			fmt.Fprint(cmd.OutOrStdout(), script)
-			return nil
+			_, err = fmt.Fprint(cmd.OutOrStdout(), script)
+			return err
 		},
 	}
 }

@@ -44,7 +44,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 		return 130
 	}
 
-	fmt.Fprintln(stderr, err)
+	_, _ = fmt.Fprintln(stderr, err)
 	if isUsageError(err) {
 		return 2
 	}
@@ -62,8 +62,8 @@ func newRootCmd() *cobra.Command {
 
 	root.RunE = func(cmd *cobra.Command, args []string) error {
 		if v, _ := cmd.Flags().GetBool("version"); v {
-			fmt.Fprintln(cmd.OutOrStdout(), versionString())
-			return nil
+			_, err := fmt.Fprintln(cmd.OutOrStdout(), versionString())
+			return err
 		}
 		return pickRunE(cmd, nil)
 	}
