@@ -23,8 +23,8 @@ func newVersionCmd() *cobra.Command {
 		Short: "print the cdd version",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			fmt.Fprintln(cmd.OutOrStdout(), versionString())
-			return nil
+			_, err := fmt.Fprintln(cmd.OutOrStdout(), versionString())
+			return err
 		},
 	}
 }
