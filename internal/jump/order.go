@@ -16,9 +16,10 @@ import (
 // Visits: Projects with a Visit come first, newest Visit first, ties break
 // alphabetically by Rel; never-visited Projects follow, alphabetically. A
 // Visit for a Project not present in projects (a Stale Visit) contributes
-// no row. order is a pure function: it does not touch the filesystem or
+// no row. counts supplies each Project's Visit total for the preview and
+// may be nil. order is a pure function: it does not touch the filesystem or
 // History itself.
-func order(projects []project.Project, latest []history.Visit, root string) []picker.Row {
+func order(projects []project.Project, latest []history.Visit, counts map[string]int, root string) []picker.Row {
 	lastVisit := make(map[string]time.Time, len(latest))
 	for _, v := range latest {
 		lastVisit[v.Project] = v.At
@@ -49,6 +50,7 @@ func order(projects []project.Project, latest []history.Visit, root string) []pi
 				Path: p.Abs(root),
 			},
 			LastVisit: lastVisit[p.Rel()],
+			Visits:    counts[p.Rel()],
 		}
 	}
 	return rows

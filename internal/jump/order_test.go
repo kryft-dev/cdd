@@ -27,7 +27,7 @@ func TestOrder_VisitedFirstNewestThenNeverVisited(t *testing.T) {
 		{Project: "oss/lib", At: time.Unix(1000, 0)},
 	}
 
-	got := order(projects, latest, "/root")
+	got := order(projects, latest, nil, "/root")
 
 	want := []string{
 		"work/api",       // newest Visit
@@ -54,7 +54,7 @@ func TestOrder_TiesBreakAlphabetically(t *testing.T) {
 		{Project: "tools/alpha", At: tie},
 	}
 
-	got := order(projects, latest, "/root")
+	got := order(projects, latest, nil, "/root")
 
 	want := []string{"tools/alpha", "tools/zeta"}
 	assertRowOrder(t, got, want)
@@ -69,7 +69,7 @@ func TestOrder_NeverVisitedAlphabetical(t *testing.T) {
 		{Kind: "tools", Name: "alpha"},
 	}
 
-	got := order(projects, nil, "/root")
+	got := order(projects, nil, nil, "/root")
 
 	want := []string{"archive/old", "tools/alpha", "tools/zeta"}
 	assertRowOrder(t, got, want)
@@ -88,7 +88,7 @@ func TestOrder_StaleVisitContributesNoRow(t *testing.T) {
 		{Project: "gone/vanished", At: time.Unix(9000, 0)},
 	}
 
-	got := order(projects, latest, "/root")
+	got := order(projects, latest, nil, "/root")
 
 	if len(got) != 1 {
 		t.Fatalf("order: got %d rows, want 1", len(got))
@@ -111,5 +111,25 @@ func assertRowOrder(t *testing.T, got []picker.Row, want []string) {
 		if rel != w {
 			t.Errorf("row %d = %q, want %q", i, rel, w)
 		}
+	}
+}
+
+// TestOrder_FillsVisitCounts checks that each row carries the Project's
+// Visit total from counts, and zero for a Project counts does not know.
+func TestOrder_FillsVisitCounts(t *testing.T) {
+	projects := []project.Project{
+		{Kind: "tools", Name: "cdd"},
+		{Kind: "tools", Name: "dotfiles"},
+	}
+	latest := []history.Visit{{Project: "tools/cdd", At: time.Unix(3000, 0)}}
+	counts := map[string]int{"tools/cdd": 4}
+
+	got := order(projects, latest, counts, "/root")
+
+	if got[0].Visits != 4 {
+		t.Errorf("tools/cdd Visits = %d, want 4", got[0].Visits)
+	}
+	if got[1].Visits != 0 {
+		t.Errorf("tools/dotfiles Visits = %d, want 0", got[1].Visits)
 	}
 }
