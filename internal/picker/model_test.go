@@ -90,7 +90,7 @@ func TestModel_FuzzyFilter(t *testing.T) {
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	m = next.(picker.Model)
 
-	for _, r := range []rune("billing") {
+	for _, r := range "billing" {
 		next, _ = m.Update(tea.KeyPressMsg{Text: string(r)})
 		m = next.(picker.Model)
 	}
