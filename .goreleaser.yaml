@@ -1,0 +1,40 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+
+project_name: cdd
+
+builds:
+  - id: cdd
+    main: ./cmd/cdd
+    binary: cdd
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X github.com/kryft-dev/cdd/internal/cli.version={{ .Version }} -X github.com/kryft-dev/cdd/internal/cli.commit={{ .ShortCommit }} -X github.com/kryft-dev/cdd/internal/cli.date={{ .CommitDate }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: cdd
+    formats: ["tar.gz"]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
+  algorithm: sha256
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
