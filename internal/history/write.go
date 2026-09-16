@@ -96,24 +96,70 @@ func exceedsThreshold(total, maxVisits int) bool {
 
 // withLock opens the History file for read/write (creating it if absent),
 // takes an advisory exclusive flock, runs fn, then unlocks and closes.
+//
+// Compaction replaces the file at h.path with a new inode via a temp-file
+// rename while the lock is held (see compact.go). A racing withLock call
+// may open the path before that rename and lock the old, soon-to-be-unlinked
+// inode: writes to it would be lost, and a lock on it does not serialise
+// against a writer that opened the new inode after the rename. So once the
+// lock is held, withLock stats the path and compares it against the open
+// fd with os.SameFile; if they differ, the rename raced this open, and
+// withLock unlocks, closes, and retries against the current path.
 func (h *History) withLock(fn func(f *os.File) error) error {
 	if err := os.MkdirAll(filepath.Dir(h.path), 0o755); err != nil {
 		return fmt.Errorf("history: %w", err)
 	}
 
-	f, err := os.OpenFile(h.path, os.O_RDWR|os.O_CREATE, 0o644)
+	for {
+		f, err := os.OpenFile(h.path, os.O_RDWR|os.O_CREATE, 0o644)
+		if err != nil {
+			return fmt.Errorf("history: %w", err)
+		}
+
+		if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+			_ = f.Close()
+			return fmt.Errorf("history: lock: %w", err)
+		}
+
+		stale, err := isStale(f, h.path)
+		if err != nil {
+			_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+			_ = f.Close()
+			return fmt.Errorf("history: %w", err)
+		}
+		if stale {
+			_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+			_ = f.Close()
+			continue
+		}
+
+		err = fn(f)
+		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+		_ = f.Close()
+		if err != nil {
+			return fmt.Errorf("history: %w", err)
+		}
+		return nil
+	}
+}
+
+// isStale reports whether f, now locked, refers to an inode that a
+// concurrent compaction has since renamed away from path: the lock on f no
+// longer serialises against writers of the file now at path.
+func isStale(f *os.File, path string) (bool, error) {
+	pathInfo, err := os.Stat(path)
 	if err != nil {
-		return fmt.Errorf("history: %w", err)
+		if os.IsNotExist(err) {
+			// The file was removed out from under us (unexpected outside
+			// compaction, which always renames a replacement into place);
+			// treat it as stale so the caller retries.
+			return true, nil
+		}
+		return false, err
 	}
-	defer func() { _ = f.Close() }()
-
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
-		return fmt.Errorf("history: lock: %w", err)
+	fInfo, err := f.Stat()
+	if err != nil {
+		return false, err
 	}
-	defer func() { _ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN) }()
-
-	if err := fn(f); err != nil {
-		return fmt.Errorf("history: %w", err)
-	}
-	return nil
+	return !os.SameFile(pathInfo, fInfo), nil
 }
