@@ -24,6 +24,10 @@ _Avoid_: cd, navigate, switch, open, go to
 A single recorded Jump to a Project, or an entry seeded for a Project by a Scan. Changing directory by other means is not tracked.
 _Avoid_: Access, hit, entry, usage
 
+**Stale Visit**:
+A Visit whose Project is no longer found under Root, whatever the cause. It contributes nothing to the Picker and is never pruned; it ages out of History.
+_Avoid_: Orphan, dead entry, dangling, missing project
+
 **History**:
 The ordered record of Visits from which recent Projects are derived.
 _Avoid_: Cache, log, database, store
