@@ -5,11 +5,11 @@ A terminal UI for jumping to recently used projects. It remembers where you have
 ## Language
 
 **Project**:
-A directory the user works in and may want to return to. Identified by its path.
+Any directory the user may want to return to, identified by its path. It need not be a repository or contain anything in particular.
 _Avoid_: Repo, workspace, folder, directory
 
 **Visit**:
-A single recorded occurrence of the user landing in a Project. Visits are what make a Project recent.
+A single recorded Jump to a Project. Only Jumps create Visits; changing directory by other means is not tracked.
 _Avoid_: Access, hit, entry, usage
 
 **History**:
