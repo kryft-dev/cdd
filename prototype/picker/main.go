@@ -27,13 +27,15 @@ const (
 	vTable variant = iota
 	vGrouped
 	vSplit
+	vComposite
 	variantCount
 )
 
 var variantNames = map[variant]string{
-	vTable:   "A · Table (gh-dash)",
-	vGrouped: "B · Grouped by Kind",
-	vSplit:   "C · List + preview",
+	vTable:     "A · Table (gh-dash)",
+	vGrouped:   "B · Grouped by Kind",
+	vSplit:     "C · List + preview",
+	vComposite: "D · Grouped + preview",
 }
 
 // row is a visible Picker row: the Project plus its fuzzy match positions
@@ -53,10 +55,12 @@ type model struct {
 	themeMode string // auto | dark | light
 	termDark  bool
 	chosen    string
+	keymap    string // arrows | vim
+	filtering bool   // vim mode only: true while the filter has focus
 }
 
-func newModel(v variant, themeMode string) model {
-	return model{projects: fakeProjects(), variant: v, themeMode: themeMode, termDark: true, width: 100, height: 30}
+func newModel(v variant, themeMode, keymap string) model {
+	return model{projects: fakeProjects(), variant: v, themeMode: themeMode, termDark: true, width: 100, height: 30, keymap: keymap, filtering: keymap != "vim"}
 }
 
 func (m model) theme() theme {
@@ -93,7 +97,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
-	case "ctrl+c", "esc":
+	case "ctrl+c":
 		return m, tea.Quit
 	case "enter":
 		if rows := m.visible(); len(rows) > 0 {
@@ -111,10 +115,24 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.projects[i].Loaded = false
 		}
 		return m, statusCmds(m.projects)
+	case "ctrl+f":
+		m.keymap = map[string]string{"arrows": "vim", "vim": "arrows"}[m.keymap]
+		m.filtering = m.keymap != "vim"
 	case "up", "ctrl+p", "ctrl+k":
 		m.cursor = max(m.cursor-1, 0)
 	case "down", "ctrl+n", "ctrl+j":
 		m.cursor = min(m.cursor+1, max(len(m.visible())-1, 0))
+	}
+	if m.keymap == "vim" && !m.filtering {
+		return m.vimKey(msg)
+	}
+	switch msg.String() {
+	case "esc":
+		if m.keymap == "vim" {
+			m.filtering = false
+			return m, nil
+		}
+		return m, tea.Quit
 	case "backspace":
 		if r := []rune(m.query); len(r) > 0 {
 			m.query = string(r[:len(r)-1])
@@ -127,6 +145,28 @@ func (m model) key(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.query += msg.Text
 			m.cursor = 0
 		}
+	}
+	return m, nil
+}
+
+// vimKey handles normal mode when -keys vim: the list has focus, j/k move,
+// f hands focus to the filter, esc cancels the Picker.
+func (m model) vimKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "q":
+		return m, tea.Quit
+	case "j":
+		m.cursor = min(m.cursor+1, max(len(m.visible())-1, 0))
+	case "k":
+		m.cursor = max(m.cursor-1, 0)
+	case "g":
+		m.cursor = 0
+	case "G":
+		m.cursor = max(len(m.visible())-1, 0)
+	case "f", "/":
+		m.filtering = true
+	case "ctrl+u":
+		m.query, m.cursor = "", 0
 	}
 	return m, nil
 }
@@ -166,6 +206,8 @@ func (m model) render(t theme, w, h int) string {
 		return viewGrouped(m, t, w, h)
 	case vSplit:
 		return viewSplit(m, t, w, h)
+	case vComposite:
+		return viewComposite(m, t, w, h)
 	}
 	return viewTable(m, t, w, h)
 }
@@ -178,13 +220,20 @@ func (m model) switcher(t theme) string {
 	if mode == "auto" {
 		mode = map[bool]string{true: "auto→dark", false: "auto→light"}[m.termDark]
 	}
-	s := fmt.Sprintf(" PROTOTYPE  ◀ shift+tab  %s  tab ▶   ctrl+t theme: %s   ctrl+r reload statuses ", variantNames[m.variant], mode)
+	s := fmt.Sprintf(" PROTOTYPE  ◀ shift+tab  %s  tab ▶   ctrl+t theme: %s   ctrl+f keys: %s   ctrl+r reload ", variantNames[m.variant], mode, m.keymap)
 	return bar.Width(m.width).Render(s)
 }
 
 // filterLine is shared chrome: the prompt with a block cursor.
 func (m model) filterLine(t theme, prompt string) string {
 	cur := lipgloss.NewStyle().Reverse(true).Render(" ")
+	if m.keymap == "vim" && !m.filtering {
+		hint := t.Muted().Render("  f to filter")
+		if m.query == "" {
+			return t.Muted().Render(prompt) + hint
+		}
+		return t.Muted().Render(prompt) + m.query + hint
+	}
 	if m.query == "" {
 		return t.fg(t.purple).Bold(true).Render(prompt) + cur + t.Muted().Render(" type to filter")
 	}
@@ -192,15 +241,16 @@ func (m model) filterLine(t theme, prompt string) string {
 }
 
 func main() {
-	v := flag.String("variant", "a", "starting variant: a, b or c")
+	v := flag.String("variant", "d", "starting variant: a, b, c or d")
 	th := flag.String("theme", "auto", "palette: auto, dark or light")
+	keys := flag.String("keys", "arrows", "key map: arrows or vim (j/k move, f filters)")
 	snap := flag.Bool("snapshot", false, "print every variant in both themes and exit")
 	flag.Parse()
-	start := variant(strings.Index("abc", strings.ToLower(*v)))
+	start := variant(strings.Index("abcd", strings.ToLower(*v)))
 	if start < 0 {
 		start = vTable
 	}
-	m := newModel(start, *th)
+	m := newModel(start, *th, *keys)
 	if *snap {
 		snapshot(m)
 		return
@@ -224,6 +274,7 @@ func snapshot(m model) {
 		m.projects[i].Loaded = true
 	}
 	m.cursor = 1
+	m.filtering = true
 	for _, mode := range []string{"dark", "light"} {
 		m.themeMode = mode
 		for v := vTable; v < variantCount; v++ {
