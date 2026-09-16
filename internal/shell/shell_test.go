@@ -18,13 +18,37 @@ var passthrough = []string{"init", "scan", "version", "help", "completion"}
 // the shell's cd form.
 func TestScriptContainsWrapper(t *testing.T) {
 	tests := []struct {
-		name   string
-		shell  string
-		cdForm string
+		name      string
+		shell     string
+		wantDef   string
+		wantPass  string
+		wantGuard string
+		cdForm    string
 	}{
-		{name: "fish", shell: "fish", cdForm: "cd -- $result"},
-		{name: "bash", shell: "bash", cdForm: `\builtin cd -- "$result"`},
-		{name: "zsh", shell: "zsh", cdForm: `\builtin cd -- "$result"`},
+		{
+			name:      "fish",
+			shell:     "fish",
+			wantDef:   "function cdd",
+			wantPass:  "case init scan version help completion --help -h --version -V",
+			wantGuard: `test -n "$result"`,
+			cdForm:    "cd -- $result",
+		},
+		{
+			name:      "bash",
+			shell:     "bash",
+			wantDef:   "cdd() {",
+			wantPass:  "init|scan|version|help|completion|--help|-h|--version|-V",
+			wantGuard: `[ -n "$result" ]`,
+			cdForm:    `\builtin cd -- "$result"`,
+		},
+		{
+			name:      "zsh",
+			shell:     "zsh",
+			wantDef:   "cdd() {",
+			wantPass:  "init|scan|version|help|completion|--help|-h|--version|-V",
+			wantGuard: `[ -n "$result" ]`,
+			cdForm:    `\builtin cd -- "$result"`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -34,19 +58,14 @@ func TestScriptContainsWrapper(t *testing.T) {
 				t.Fatalf("Script(%q, ...) unexpected error: %v", tt.shell, err)
 			}
 
-			if !strings.Contains(got, "cdd") {
-				t.Errorf("Script(%q, ...) missing the cdd function name", tt.shell)
+			if !strings.Contains(got, tt.wantDef) {
+				t.Errorf("Script(%q, ...) missing the cdd function definition %q", tt.shell, tt.wantDef)
 			}
-			for _, cmd := range passthrough {
-				if !strings.Contains(got, cmd) {
-					t.Errorf("Script(%q, ...) missing passthrough command %q", tt.shell, cmd)
-				}
+			if !strings.Contains(got, tt.wantPass) {
+				t.Errorf("Script(%q, ...) missing the rendered passthrough branch %q", tt.shell, tt.wantPass)
 			}
-			if !strings.Contains(got, "-n") && !strings.Contains(got, "test -n") {
-				// bash/zsh use "[ -n", fish uses "test -n"
-				if !strings.Contains(got, `[ -n "$result" ]`) {
-					t.Errorf("Script(%q, ...) missing the non-empty guard", tt.shell)
-				}
+			if !strings.Contains(got, tt.wantGuard) {
+				t.Errorf("Script(%q, ...) missing the non-empty guard %q", tt.shell, tt.wantGuard)
 			}
 			if !strings.Contains(got, tt.cdForm) {
 				t.Errorf("Script(%q, ...) missing the cd form %q", tt.shell, tt.cdForm)
