@@ -57,11 +57,11 @@ func (m Model) View() tea.View {
 
 	list := m.listView(t, groups, rows, lay, now)
 	if lay.ShowPreview {
-		// The preview column is joined under a matching blank line so its
-		// box's top border lands on the list's first row, not on the
-		// filter line above.
-		right := "\n" + m.previewView(t, rows, lay, now)
-		b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, list, " ", right))
+		// The preview box is exactly ListHeight lines tall (lipgloss v2
+		// counts the border in Height), so joining it at the top keeps
+		// the frame at the terminal height: one taller and the renderer
+		// drops the filter line and repaints every tick.
+		b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, list, " ", m.previewView(t, rows, lay, now)))
 	} else {
 		b.WriteString(list)
 	}
@@ -204,7 +204,8 @@ func (m Model) previewView(t theme, rows []match, lay Layout, now time.Time) str
 		BorderForeground(t.rule).
 		Padding(0, 1).
 		Width(lay.PreviewWidth).
-		Height(lay.ListHeight)
+		Height(lay.ListHeight).
+		MaxHeight(lay.ListHeight) // Height is a minimum; a tall body must not grow the box
 	return box.Render(body.String())
 }
 
