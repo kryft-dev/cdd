@@ -4,9 +4,8 @@ A TUI that lets you jump to recent Projects.
 
 ## Demo
 
-<!-- Maintainer: record a terminal-session GIF or asciinema cast of the
-     Picker in action and drop it here. No recording tool is available in
-     this environment. -->
+<!-- Recorded with VHS against a throwaway Root: demo/setup.sh && vhs demo/demo.tape -->
+![cdd demo](demo/demo.gif)
 
 ## Install
 
