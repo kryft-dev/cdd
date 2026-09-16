@@ -62,21 +62,26 @@ func readVisits(path string) ([]Visit, error) {
 }
 
 // parseVisits reads and parses every line from r, skipping malformed lines
-// silently.
+// silently. A line is read with bufio.Reader rather than bufio.Scanner so
+// that one over-long garbage line (beyond Scanner's 64 KiB token limit) is
+// itself just skipped as malformed, instead of aborting the read for the
+// whole file.
 func parseVisits(r io.Reader) ([]Visit, error) {
 	var visits []Visit
-	scanner := bufio.NewScanner(r)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if line == "" {
-			continue
+	br := bufio.NewReader(r)
+	for {
+		line, err := br.ReadString('\n')
+		line = strings.TrimSuffix(line, "\n")
+		if line != "" {
+			if v, ok := parseLine(line); ok {
+				visits = append(visits, v)
+			}
 		}
-		if v, ok := parseLine(line); ok {
-			visits = append(visits, v)
+		if err != nil {
+			if err == io.EOF {
+				return visits, nil
+			}
+			return nil, err
 		}
 	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
-	return visits, nil
 }
