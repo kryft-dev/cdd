@@ -90,14 +90,20 @@ func (m Model) filterLine(t theme) string {
 }
 
 // listView renders the grouped list body: a header line per Kind, then its
-// rows, with the cursor's row carrying the caret and accent name.
+// rows, with the cursor's row carrying the caret and accent name. The body
+// is windowed to exactly Layout.ListHeight lines, scrolled so the cursor's
+// line (counting Kind header lines) stays on screen.
 func (m Model) listView(t theme, groups []kindGroup, rows []match, lay Layout, now time.Time) string {
 	var lines []string
 	i := 0
+	cursorLine := 0
 	for _, g := range groups {
 		rule := t.rule_(max(lay.ListWidth-len([]rune(g.kind))-1, 0))
 		lines = append(lines, t.accentBold().Render(g.kind)+" "+rule)
 		for _, mt := range g.matches {
+			if i == m.cursor {
+				cursorLine = len(lines)
+			}
 			lines = append(lines, m.rowView(t, mt, i == m.cursor, lay, now))
 			i++
 		}
@@ -105,7 +111,19 @@ func (m Model) listView(t theme, groups []kindGroup, rows []match, lay Layout, n
 	if len(rows) == 0 {
 		lines = append(lines, t.muted_().Render("no projects match"))
 	}
-	return strings.Join(lines, "\n")
+
+	listH := max(lay.ListHeight, 1)
+	start := 0
+	if cursorLine >= listH {
+		start = cursorLine - listH + 1
+	}
+	windowed := make([]string, listH)
+	for i := range windowed {
+		if idx := start + i; idx < len(lines) {
+			windowed[i] = lines[idx]
+		}
+	}
+	return strings.Join(windowed, "\n")
 }
 
 // rowView renders one Project row: NAME  STATUS  LAST VISIT, with a caret
