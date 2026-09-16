@@ -42,7 +42,12 @@ func Resolve(ctx context.Context, cfg config.Config, hist *history.History, quer
 		return "", fmt.Errorf("jump: %w", err)
 	}
 
-	rel, abs, err := choose(cfg, projects, latest, query, pick)
+	counts, err := hist.Counts()
+	if err != nil {
+		return "", fmt.Errorf("jump: %w", err)
+	}
+
+	rel, abs, err := choose(cfg, projects, latest, counts, query, pick)
 	if err != nil {
 		return "", err
 	}
@@ -60,12 +65,12 @@ func Resolve(ctx context.Context, cfg config.Config, hist *history.History, quer
 
 // choose picks a Project either via the exact-match shortcut or by running
 // the Picker, and returns its Rel and absolute path.
-func choose(cfg config.Config, projects []project.Project, latest []history.Visit, query string, pick PickFunc) (rel, abs string, err error) {
+func choose(cfg config.Config, projects []project.Project, latest []history.Visit, counts map[string]int, query string, pick PickFunc) (rel, abs string, err error) {
 	if p, ok := exactMatch(projects, query); ok {
 		return p.Rel(), p.Abs(cfg.Root), nil
 	}
 
-	rows := order(projects, latest, cfg.Root)
+	rows := order(projects, latest, counts, cfg.Root)
 	status := func(c context.Context, dir string) git.Status {
 		s, _ := git.GetStatus(c, dir)
 		return s
