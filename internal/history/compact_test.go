@@ -21,7 +21,7 @@ func seedLines(t *testing.T, path string, n int) {
 	var sb strings.Builder
 	for i := range n {
 		at := base.Add(time.Duration(i) * time.Second)
-		sb.WriteString(fmt.Sprintf("%s\tjump\tproj/%d\n", at.Format(time.RFC3339), i))
+		fmt.Fprintf(&sb, "%s\tjump\tproj/%d\n", at.Format(time.RFC3339), i)
 	}
 	if err := os.WriteFile(path, []byte(sb.String()), 0o644); err != nil {
 		t.Fatalf("WriteFile: unexpected error: %v", err)
@@ -34,7 +34,7 @@ func countLines(t *testing.T, path string) int {
 	if err != nil {
 		t.Fatalf("Open: unexpected error: %v", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	n := 0
 	scanner := bufio.NewScanner(f)
@@ -138,7 +138,7 @@ func TestCompact_DropsScanShadowedByNewerJump(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open: unexpected error: %v", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		if strings.Contains(scanner.Text(), "\tscan\tproj/a") {

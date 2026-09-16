@@ -57,16 +57,16 @@ func rewrite(path string, visits []Visit) error {
 		return err
 	}
 	tmpPath := tmp.Name()
-	defer os.Remove(tmpPath) // no-op once renamed
+	defer func() { _ = os.Remove(tmpPath) }() // no-op once renamed
 
 	for _, v := range visits {
 		if _, err := tmp.WriteString(formatLine(v)); err != nil {
-			tmp.Close()
+			_ = tmp.Close()
 			return err
 		}
 	}
 	if err := tmp.Sync(); err != nil {
-		tmp.Close()
+		_ = tmp.Close()
 		return err
 	}
 	if err := tmp.Close(); err != nil {

@@ -34,7 +34,7 @@ func (h *History) Seed(project string, at time.Time) error {
 		}
 
 		newest, found := newestFor(visits, project)
-		if found && !(newest.Source == SourceScan && newest.At.Before(v.At)) {
+		if found && (newest.Source != SourceScan || !newest.At.Before(v.At)) {
 			return nil
 		}
 
@@ -105,12 +105,12 @@ func (h *History) withLock(fn func(f *os.File) error) error {
 	if err != nil {
 		return fmt.Errorf("history: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
 		return fmt.Errorf("history: lock: %w", err)
 	}
-	defer syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+	defer func() { _ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN) }()
 
 	if err := fn(f); err != nil {
 		return fmt.Errorf("history: %w", err)
