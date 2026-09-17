@@ -152,3 +152,18 @@ func TestModel_View_FrameMatchesTerminalHeight(t *testing.T) {
 		}
 	}
 }
+
+// TestModel_View_UsesAlternateScreen pins the Picker to the alternate
+// screen so nothing is left above the shell prompt after a Jump or cancel.
+func TestModel_View_UsesAlternateScreen(t *testing.T) {
+	m := picker.NewModel(manyRows(3), noopStatus, picker.Options{})
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	m = next.(picker.Model)
+	if !m.View().AltScreen {
+		t.Errorf("View().AltScreen = false, want true")
+	}
+	empty := picker.NewModel(nil, noopStatus, picker.Options{})
+	if !empty.View().AltScreen {
+		t.Errorf("empty-History View().AltScreen = false, want true")
+	}
+}
