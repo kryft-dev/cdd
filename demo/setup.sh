@@ -99,6 +99,6 @@ Try it in a shell:
   export XDG_CONFIG_HOME=$CONFIG XDG_DATA_HOME=$DATA               # bash/zsh
   $BIN/cdd
 
-Record it:
+Record it (VHS v0.11.0; v0.12.0 silently writes no GIF):
   vhs demo/demo.tape
 MSG
