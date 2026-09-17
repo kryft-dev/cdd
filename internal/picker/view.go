@@ -18,7 +18,7 @@ func (m Model) View() tea.View {
 		return tea.NewView("")
 	}
 	if len(m.rows) == 0 {
-		return tea.NewView(m.emptyHistoryView())
+		return fullScreen(m.emptyHistoryView())
 	}
 
 	t := newTheme(m.dark)
@@ -69,7 +69,17 @@ func (m Model) View() tea.View {
 	b.WriteString("\n")
 	b.WriteString(m.footerView(t, width, len(rows), lay))
 
-	return tea.NewView(b.String())
+	return fullScreen(b.String())
+}
+
+// fullScreen wraps content in a View drawn on the alternate screen. The
+// frame always fills the terminal, and the alternate screen guarantees
+// the shell's own scrollback comes back untouched when the Picker exits;
+// inline rendering left stray lines above the prompt.
+func fullScreen(content string) tea.View {
+	v := tea.NewView(content)
+	v.AltScreen = true
+	return v
 }
 
 // emptyHistoryView is shown when there are no rows at all: an empty
