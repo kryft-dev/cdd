@@ -118,6 +118,34 @@ func TestResolve_AmbiguousNameOpensPickerPrefilled(t *testing.T) {
 	assertRecorded(t, hist, "tools/cdd")
 }
 
+// TestResolve_ForwardsPickerOptions verifies that the config keys that
+// configure the Picker reach it: the vim key map and the layout.
+func TestResolve_ForwardsPickerOptions(t *testing.T) {
+	cfg, root := mkProjects(t, "tools/cdd")
+	cfg.Keys.Vim = true
+	cfg.Picker.Layout = "list"
+	hist := newHistory(t)
+
+	var got picker.Options
+	pick := func(rows []picker.Row, status picker.StatusFunc, opts picker.Options) (picker.Row, bool, error) {
+		got = opts
+		return picker.Row{Project: picker.Project{
+			Kind: "tools", Name: "cdd", Path: filepath.Join(root, "tools", "cdd"),
+		}}, true, nil
+	}
+
+	if _, err := jump.Resolve(context.Background(), cfg, hist, "", pick); err != nil {
+		t.Fatalf("Resolve: unexpected error: %v", err)
+	}
+
+	if !got.Vim {
+		t.Errorf("Options.Vim = false, want true")
+	}
+	if got.Layout != picker.LayoutList {
+		t.Errorf("Options.Layout = %q, want %q", got.Layout, picker.LayoutList)
+	}
+}
+
 func TestResolve_NoMatchOpensPickerPrefilled(t *testing.T) {
 	cfg, root := mkProjects(t, "tools/cdd")
 	hist := newHistory(t)
