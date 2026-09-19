@@ -1,6 +1,7 @@
 package picker_test
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -10,6 +11,27 @@ import (
 
 	"github.com/kryft-dev/cdd/internal/picker"
 )
+
+// bothLayouts is every layout the Picker can draw, for the behaviour the
+// two share: the frame's height, the alternate screen, equal-width rows
+// and windowing the body to the terminal.
+var bothLayouts = []picker.LayoutStyle{picker.LayoutGrouped, picker.LayoutList}
+
+// sizedModel builds a Model in the given layout and sends it one
+// tea.WindowSizeMsg, the state every View test starts from.
+func sizedModel(rows []picker.Row, layout picker.LayoutStyle, width, height int) picker.Model {
+	m := picker.NewModel(rows, noopStatus, picker.Options{Layout: layout})
+	next, _ := m.Update(tea.WindowSizeMsg{Width: width, Height: height})
+	return next.(picker.Model)
+}
+
+// ansi matches the SGR escape sequences lipgloss wraps each styled
+// segment in. A row's text is split across several of them, so assertions
+// about what a line reads strip them first.
+var ansi = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
+// plain is s with its styling escapes removed, as the terminal shows it.
+func plain(s string) string { return ansi.ReplaceAllString(s, "") }
 
 // manyRows builds n rows all under the same Kind, so the list body is long
 // enough to need scrolling at a modest terminal height.
@@ -33,9 +55,7 @@ func TestModel_View_PreviewUnderFilterLine(t *testing.T) {
 	rows := []picker.Row{
 		{Project: picker.Project{Kind: "work", Name: "alpha", Path: "/root/work/alpha"}},
 	}
-	m := picker.NewModel(rows, noopStatus, picker.Options{})
-	next, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
-	m = next.(picker.Model)
+	m := sizedModel(rows, picker.LayoutGrouped, 120, 40)
 
 	out := m.View().Content
 	lines := strings.Split(out, "\n")
@@ -57,9 +77,7 @@ func TestModel_View_PreviewUnderFilterLine(t *testing.T) {
 // on screen.
 func TestModel_View_ListWindowedToHeight(t *testing.T) {
 	rows := manyRows(40)
-	m := picker.NewModel(rows, noopStatus, picker.Options{})
-	next, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 20})
-	m = next.(picker.Model)
+	m := sizedModel(rows, picker.LayoutGrouped, 120, 20)
 
 	lay := picker.ComputeLayout(10, 1, make([]time.Time, len(rows)), time.Now(), 120, 20)
 
@@ -86,7 +104,7 @@ func TestModel_View_ListWindowedToHeight(t *testing.T) {
 	// Move the cursor to the last row and confirm its name still appears
 	// in the rendered output (i.e. it scrolled into the window).
 	for i := 0; i < len(rows)-1; i++ {
-		next, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+		next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 		m = next.(picker.Model)
 	}
 	out = m.View().Content
@@ -97,70 +115,107 @@ func TestModel_View_ListWindowedToHeight(t *testing.T) {
 }
 
 // TestModel_View_RowsShareEqualWidth verifies that every list row renders
-// to the same display width, selected or not: a fixed-width caret gutter
-// on every row, not a caret that shrinks the selected row by a column.
+// to the same display width, selected or not: the grouped layout keeps a
+// fixed-width caret gutter on every row rather than a caret that shrinks
+// the selected row by a column, and the list layout pads every row out so
+// the selected row's background spans the pane.
 func TestModel_View_RowsShareEqualWidth(t *testing.T) {
 	rows := []picker.Row{
 		{Project: picker.Project{Kind: "work", Name: "alpha", Path: "/root/work/alpha"}},
 		{Project: picker.Project{Kind: "work", Name: "beta", Path: "/root/work/beta"}},
 		{Project: picker.Project{Kind: "work", Name: "gamma", Path: "/root/work/gamma"}},
 	}
-	m := picker.NewModel(rows, noopStatus, picker.Options{})
-	// A narrow terminal keeps the preview pane from being drawn, so each
-	// Project name appears exactly once, in its list row.
-	next, _ := m.Update(tea.WindowSizeMsg{Width: 30, Height: 40})
-	m = next.(picker.Model)
+	// The list layout prefixes "kind/"; the grouped layout puts the Kind
+	// in a header instead, so each looks for its own row text.
+	label := map[picker.LayoutStyle]func(picker.Row) string{
+		picker.LayoutGrouped: func(r picker.Row) string { return r.Project.Name },
+		picker.LayoutList:    func(r picker.Row) string { return r.Project.Kind + "/" + r.Project.Name },
+	}
 
-	names := []string{"alpha", "beta", "gamma"}
-	var widths []int
-	out := m.View().Content
-	for _, l := range strings.Split(out, "\n") {
-		for _, n := range names {
-			if strings.Contains(l, n) {
-				widths = append(widths, lipgloss.Width(l))
+	for _, layout := range bothLayouts {
+		t.Run(string(layout), func(t *testing.T) {
+			// A narrow terminal keeps the preview pane from being drawn,
+			// so each Project name appears exactly once, in its list row.
+			m := sizedModel(rows, layout, 30, 40)
+
+			var widths []int
+			for _, l := range strings.Split(m.View().Content, "\n") {
+				for _, r := range rows {
+					if strings.Contains(plain(l), label[layout](r)) {
+						widths = append(widths, lipgloss.Width(l))
+					}
+				}
 			}
-		}
-	}
-	if len(widths) != len(names) {
-		t.Fatalf("found %d row lines, want %d", len(widths), len(names))
-	}
-	for i := 1; i < len(widths); i++ {
-		if widths[i] != widths[0] {
-			t.Errorf("row %d width = %d, want %d (same as row 0, selected or not)", i, widths[i], widths[0])
-		}
+			if len(widths) != len(rows) {
+				t.Fatalf("found %d row lines, want %d", len(widths), len(rows))
+			}
+			for i := 1; i < len(widths); i++ {
+				if widths[i] != widths[0] {
+					t.Errorf("row %d width = %d, want %d (same as row 0, selected or not)", i, widths[i], widths[0])
+				}
+			}
+		})
 	}
 }
 
 // TestModel_View_FrameMatchesTerminalHeight pins the frame to exactly the
-// terminal height, with and without the preview pane. One line taller and
-// Bubble Tea's inline renderer drops the filter line off the top.
+// terminal height in both layouts, with and without the preview pane. One
+// line taller and Bubble Tea's renderer drops a line off the top.
 func TestModel_View_FrameMatchesTerminalHeight(t *testing.T) {
 	rows := manyRows(11)
-	for _, width := range []int{110, 45} {
-		for _, height := range []int{40, 30, 24, 14, 9} {
-			m := picker.NewModel(rows, noopStatus, picker.Options{})
-			next, _ := m.Update(tea.WindowSizeMsg{Width: width, Height: height})
-			m = next.(picker.Model)
-
-			lines := strings.Split(m.View().Content, "\n")
-			if len(lines) != height {
-				t.Errorf("View() at %dx%d produced %d lines, want exactly %d", width, height, len(lines), height)
+	for _, layout := range bothLayouts {
+		t.Run(string(layout), func(t *testing.T) {
+			for _, width := range []int{110, 45} {
+				for _, height := range []int{40, 30, 24, 14, 9} {
+					m := sizedModel(rows, layout, width, height)
+					lines := strings.Split(m.View().Content, "\n")
+					if len(lines) != height {
+						t.Errorf("View() at %dx%d produced %d lines, want exactly %d", width, height, len(lines), height)
+					}
+				}
 			}
-			if !strings.Contains(lines[0], "type to filter") {
-				t.Errorf("View() at %dx%d: first line %q is not the filter line", width, height, lines[0])
-			}
-		}
+		})
 	}
 }
 
-// TestModel_View_UsesAlternateScreen pins the Picker to the alternate
+// TestModel_View_FilterLineSitsWhereTheLayoutPutsIt pins the filter line
+// to the top of the grouped frame and to the line directly below the list
+// body in the list layout, where fzf users expect the prompt.
+func TestModel_View_FilterLineSitsWhereTheLayoutPutsIt(t *testing.T) {
+	rows := manyRows(11)
+	const width, height = 110, 24
+	lay := picker.ComputeLayout(20, 1, make([]time.Time, len(rows)), time.Now(), width, height)
+
+	promptLine := map[picker.LayoutStyle]int{
+		picker.LayoutGrouped: 0,
+		picker.LayoutList:    lay.ListHeight,
+	}
+	for _, layout := range bothLayouts {
+		t.Run(string(layout), func(t *testing.T) {
+			m := sizedModel(rows, layout, width, height)
+			lines := strings.Split(plain(m.View().Content), "\n")
+			want := promptLine[layout]
+			if !strings.Contains(lines[want], "type to filter") {
+				t.Errorf("line %d = %q, want the filter prompt there", want, lines[want])
+			}
+			for i, l := range lines {
+				if i != want && strings.Contains(l, "type to filter") {
+					t.Errorf("line %d = %q also holds the filter prompt, want it only on line %d", i, l, want)
+				}
+			}
+		})
+	}
+}
+
+// TestModel_View_UsesAlternateScreen pins both layouts to the alternate
 // screen so nothing is left above the shell prompt after a Jump or cancel.
 func TestModel_View_UsesAlternateScreen(t *testing.T) {
-	m := picker.NewModel(manyRows(3), noopStatus, picker.Options{})
-	next, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
-	m = next.(picker.Model)
-	if !m.View().AltScreen {
-		t.Errorf("View().AltScreen = false, want true")
+	for _, layout := range bothLayouts {
+		t.Run(string(layout), func(t *testing.T) {
+			if m := sizedModel(manyRows(3), layout, 100, 30); !m.View().AltScreen {
+				t.Errorf("View().AltScreen = false, want true")
+			}
+		})
 	}
 	empty := picker.NewModel(nil, noopStatus, picker.Options{})
 	if !empty.View().AltScreen {
