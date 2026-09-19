@@ -95,3 +95,36 @@ func TestComputeLayout_FooterLines(t *testing.T) {
 		})
 	}
 }
+
+// TestComputeLayout_StatusColumnHoldsItsWidthWhileLoading pins the Layout
+// computed while every row still reads "…" to the one computed once real
+// clusters have landed. Statuses arrive a row at a time with the Picker
+// already on screen, and a column sized to the ones that have arrived
+// shifted the names, the times and the preview's edge as the rest did.
+func TestComputeLayout_StatusColumnHoldsItsWidthWhileLoading(t *testing.T) {
+	now := time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
+	times := []time.Time{now.Add(-2 * time.Hour), now.Add(-3 * 24 * time.Hour)}
+
+	// 1 is the width of the "…" placeholder every row reports before its
+	// status lands; 6 is "✓ ? ↑1", a loaded cluster.
+	loading := picker.ComputeLayout(20, 1, times, now, 120, 24)
+	loaded := picker.ComputeLayout(20, 6, times, now, 120, 24)
+
+	if loading != loaded {
+		t.Errorf("layout while loading = %+v, want it identical to the loaded layout %+v", loading, loaded)
+	}
+}
+
+// TestComputeLayout_StatusColumnGrowsPastTheReserve verifies that a cluster
+// wider than the reserve still gets its room: the reserve is a floor, not a
+// cap.
+func TestComputeLayout_StatusColumnGrowsPastTheReserve(t *testing.T) {
+	now := time.Date(2026, 9, 17, 12, 0, 0, 0, time.UTC)
+	times := []time.Time{now.Add(-2 * time.Hour)}
+
+	lay := picker.ComputeLayout(20, 12, times, now, 120, 24)
+
+	if lay.StatusWidth != 12 {
+		t.Errorf("StatusWidth = %d, want 12 (the widest cluster, wider than the reserve)", lay.StatusWidth)
+	}
+}

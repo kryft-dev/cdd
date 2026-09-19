@@ -15,14 +15,20 @@ const previewFloor = 30
 // caretWidth is the fixed-width caret/gutter column ("   " or " › ").
 const caretWidth = 3
 
+// statusReserve is the width the status column is held at from the first
+// frame, wide enough for "✓ ? ↑1↓1". Row statuses land one at a time while
+// the Picker is already on screen, and a column sized to whichever of them
+// have arrived would widen under the user as the rest do.
+const statusReserve = 8
+
 // Layout is the Picker's per-frame sizing, recomputed from every
 // tea.WindowSizeMsg without losing any Model state.
 type Layout struct {
 	// NameWidth is the column width for a Project name, after any
 	// truncation.
 	NameWidth int
-	// StatusWidth is the column width for the status glyph cluster. It
-	// never shrinks.
+	// StatusWidth is the column width for the status glyph cluster, never
+	// narrower than statusReserve.
 	StatusWidth int
 	// TimeWidth is the column width for the relative last-visit time.
 	TimeWidth int
@@ -55,11 +61,12 @@ type Layout struct {
 // previewFloor columns for the preview, the preview is dropped and the list
 // takes the full width. Within the list's own budget, relative time
 // compresses to its short form first, then names truncate with "…" down to
-// nameFloor; the status cluster never shrinks and there is no hard minimum.
+// nameFloor; the status cluster is never narrower than statusReserve and
+// there is no hard minimum.
 func ComputeLayout(longestName, widestStatus int, times []time.Time, now time.Time, width, height int) Layout {
 	l := Layout{
 		NameWidth:   longestName,
-		StatusWidth: widestStatus,
+		StatusWidth: max(widestStatus, statusReserve),
 		TimeWidth:   widestTime(times, now, false),
 	}
 
