@@ -15,7 +15,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.BackgroundColorMsg:
 		m.dark = msg.IsDark()
-		m.themeSet = true
 		return m, nil
 
 	case tea.WindowSizeMsg:

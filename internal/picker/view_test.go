@@ -222,3 +222,24 @@ func TestModel_View_UsesAlternateScreen(t *testing.T) {
 		t.Errorf("empty-History View().AltScreen = false, want true")
 	}
 }
+
+// TestModel_View_FirstFrameNeedsNoRepaint pins the frame drawn before the
+// terminal has reported its background to the frame drawn after a dark
+// report. The reply to that query lands a frame or two in; opening in the
+// light palette meant a dark terminal saw one washed-out frame, border box
+// and all, flash past on launch.
+func TestModel_View_FirstFrameNeedsNoRepaint(t *testing.T) {
+	for _, layout := range bothLayouts {
+		t.Run(string(layout), func(t *testing.T) {
+			m := sizedModel(manyRows(5), layout, 110, 30)
+			before := m.View().Content
+
+			next, _ := m.Update(tea.BackgroundColorMsg{Color: lipgloss.Color("#0D1117")})
+			after := next.(picker.Model).View().Content
+
+			if before != after {
+				t.Errorf("the first frame is not the dark palette's frame; it repaints when the background report lands:\nbefore:\n%s\nafter:\n%s", before, after)
+			}
+		})
+	}
+}

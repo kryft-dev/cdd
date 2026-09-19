@@ -42,7 +42,6 @@ type Model struct {
 
 	width, height int
 	dark          bool
-	themeSet      bool
 
 	chosen    bool
 	chosenRow Row
@@ -68,6 +67,11 @@ func NewModel(rows []Row, status StatusFunc, opts Options) Model {
 		query:    opts.Query,
 		focus:    f,
 		statuses: make(map[string]git.Status, len(rows)),
+
+		// Dark until the terminal says otherwise, as lipgloss itself
+		// assumes: Run settles it before the first frame, and a light
+		// terminal that answers neither query is rarer than a dark one.
+		dark: true,
 	}
 }
 
