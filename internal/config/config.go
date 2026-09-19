@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 
 	toml "github.com/pelletier/go-toml/v2"
@@ -194,20 +193,10 @@ func (c *Config) validate(path string) error {
 	}
 
 	if !slices.Contains(pickerLayouts, c.Picker.Layout) {
-		return fmt.Errorf("config: %s: picker.layout must be one of %s, got %q", path, quoteList(pickerLayouts), c.Picker.Layout)
+		return fmt.Errorf("config: %s: picker.layout must be %s, got %q", path, strings.Join(pickerLayouts, " or "), c.Picker.Layout)
 	}
 
 	return nil
-}
-
-// quoteList renders values as a quoted, comma-separated list, for the
-// error naming the layouts picker.layout accepts.
-func quoteList(values []string) string {
-	quoted := make([]string, len(values))
-	for i, v := range values {
-		quoted[i] = strconv.Quote(v)
-	}
-	return strings.Join(quoted, ", ")
 }
 
 // expandHome expands a leading "~" in path to the user's home directory.
