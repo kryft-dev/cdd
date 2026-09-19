@@ -96,15 +96,16 @@ Vim key map (`keys.vim = true`): the list is focused on open.
 
 ### Layout
 
-The Picker ships two layouts, selected with `picker.layout`.
+The Picker ships two Layouts, selected with `picker.layout`.
 
-`grouped` (the default) groups rows under Kind headers, marks the selected
-row with a caret, and puts the filter line above the list.
+The **Grouped Layout** (`grouped`, the default) groups Projects under Kind
+headers, marks the selected row with a caret, and puts the filter line
+above the list.
 
-`list` is a flat fzf-style list: no Kind headers, rows in History order
-with never-visited Projects last, `kind/` muted before each Project name,
-the filter prompt below the list, and a `▌` bar plus a background
-highlight on the selected row.
+The **List Layout** (`list`) is a flat fzf-style run: no Kind headers,
+Projects in History order with never-visited ones last, `kind/` muted
+before each Project name, the filter prompt below the list, and a `▌` bar
+plus a background highlight on the selected row.
 
 Both draw the same preview pane, use the same keys, status glyphs and
 colours, and degrade the same way on a narrow terminal.
@@ -138,7 +139,7 @@ layout = "grouped"        # or "list" for the flat fzf-style layout
 - `[keys].vim`: when `true`, the Picker opens with the list focused and
   uses the vim key map described above. Defaults to `false`, the default
   key map.
-- `[picker].layout`: which Picker layout to draw, `"grouped"` (the
+- `[picker].layout`: which Layout the Picker draws, `"grouped"` (the
   default) or `"list"`, as described above. Any other value is a config
   error.
 
