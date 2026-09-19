@@ -13,6 +13,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/kryft-dev/cdd/internal/git"
 )
@@ -88,17 +89,15 @@ const concurrency = 8
 // The Picker draws on /dev/tty via tea.OpenTTY, falling back to stderr when
 // no TTY is available. It never writes to stdout.
 func Run(rows []Row, status StatusFunc, opts Options) (Row, bool, error) {
+	s := openScreen()
+	if s.cleanup != nil {
+		defer s.cleanup()
+	}
+
 	m := NewModel(rows, status, opts)
+	m.dark = s.dark()
 
-	ttyOpts, cleanup, err := ttyProgramOptions()
-	if err != nil {
-		return Row{}, false, err
-	}
-	if cleanup != nil {
-		defer cleanup()
-	}
-
-	p := tea.NewProgram(m, ttyOpts...)
+	p := tea.NewProgram(m, s.opts...)
 	final, err := p.Run()
 	if err != nil {
 		return Row{}, false, err
@@ -114,18 +113,47 @@ func Run(rows []Row, status StatusFunc, opts Options) (Row, bool, error) {
 	return fm.chosenRow, true, nil
 }
 
-// ttyProgramOptions builds the tea.ProgramOptions that make the Picker draw
-// on /dev/tty, falling back to stderr when no TTY can be opened. stdout is
-// never used, since a caller may pipe it (the Wrapper reads the chosen path
-// from Run's return value, not from the program's own output).
-func ttyProgramOptions() ([]tea.ProgramOption, func(), error) {
+// screen is where the Picker draws: the files it reads from and writes to,
+// and the Bubble Tea options pointing the program at them.
+type screen struct {
+	in, out *os.File
+	opts    []tea.ProgramOption
+
+	// cleanup closes the files, when they are ours to close. It is nil for
+	// the stderr fallback.
+	cleanup func()
+}
+
+// openScreen opens /dev/tty for the Picker to draw on, falling back to
+// stderr when no TTY can be opened. stdout is never used, since a caller
+// may pipe it (the Wrapper reads the chosen path from Run's return value,
+// not from the program's own output).
+func openScreen() screen {
 	in, out, err := tea.OpenTTY()
 	if err != nil {
-		return []tea.ProgramOption{tea.WithOutput(os.Stderr)}, nil, nil
+		return screen{
+			in:   os.Stdin,
+			out:  os.Stderr,
+			opts: []tea.ProgramOption{tea.WithOutput(os.Stderr)},
+		}
 	}
-	cleanup := func() {
-		_ = in.Close()
-		_ = out.Close()
+	return screen{
+		in:   in,
+		out:  out,
+		opts: []tea.ProgramOption{tea.WithInput(in), tea.WithOutput(out)},
+		cleanup: func() {
+			_ = in.Close()
+			_ = out.Close()
+		},
 	}
-	return []tea.ProgramOption{tea.WithInput(in), tea.WithOutput(out)}, cleanup, nil
+}
+
+// dark reports whether the terminal has a dark background, asked and
+// answered before the program starts so the very first frame is already in
+// the right palette. Bubble Tea reports the background asynchronously, a
+// frame or two in, which repainted the whole Picker on launch. lipgloss
+// sends a device-attributes query alongside, so a terminal that ignores the
+// background query still ends this one promptly, leaving the palette dark.
+func (s screen) dark() bool {
+	return lipgloss.HasDarkBackground(s.in, s.out)
 }
