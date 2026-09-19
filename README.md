@@ -94,6 +94,21 @@ Vim key map (`keys.vim = true`): the list is focused on open.
 | `esc` / `q` | cancel |
 | `enter` | Jump to the selected Project |
 
+### Layout
+
+The Picker ships two layouts, selected with `picker.layout`.
+
+`grouped` (the default) groups rows under Kind headers, marks the selected
+row with a caret, and puts the filter line above the list.
+
+`list` is a flat fzf-style list: no Kind headers, rows in History order
+with never-visited Projects last, `kind/` muted before each Project name,
+the filter prompt below the list, and a `▌` bar plus a background
+highlight on the selected row.
+
+Both draw the same preview pane, use the same keys, status glyphs and
+colours, and degrade the same way on a narrow terminal.
+
 ## Config reference
 
 `cdd` reads `config.toml` from `$XDG_CONFIG_HOME/cdd/config.toml`, falling
@@ -107,6 +122,8 @@ include_hidden = false
 max_visits = 1000         # must be >= 1
 [keys]
 vim = false
+[picker]
+layout = "grouped"        # or "list" for the flat fzf-style layout
 ```
 
 - `root` (required): the top-level directory whose Kinds are searched for
@@ -121,6 +138,9 @@ vim = false
 - `[keys].vim`: when `true`, the Picker opens with the list focused and
   uses the vim key map described above. Defaults to `false`, the default
   key map.
+- `[picker].layout`: which Picker layout to draw, `"grouped"` (the
+  default) or `"list"`, as described above. Any other value is a config
+  error.
 
 History is stored at `$XDG_DATA_HOME/cdd/history`, falling back to
 `~/.local/share/cdd/history` when `XDG_DATA_HOME` is unset.
