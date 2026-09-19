@@ -76,7 +76,7 @@ func choose(cfg config.Config, projects []project.Project, latest []history.Visi
 		return s
 	}
 
-	row, ok, err := pick(rows, status, picker.Options{Vim: cfg.Keys.Vim, Query: query})
+	row, ok, err := pick(rows, status, picker.Options{Vim: cfg.Keys.Vim, Query: query, Layout: picker.LayoutStyle(cfg.Picker.Layout)})
 	if err != nil {
 		return "", "", fmt.Errorf("jump: %w", err)
 	}
