@@ -11,8 +11,9 @@ import (
 	"github.com/kryft-dev/cdd/internal/git"
 )
 
-// View renders the current frame: the filter line, the grouped list (with a
-// preview pane beside it when there is room), and the footer.
+// View renders the current frame in the Model's layout: the grouped
+// layout by default, the flat fzf-style one when Options.Layout selected
+// it. Both share the sizing, the preview pane and the footer.
 func (m Model) View() tea.View {
 	if m.quitting {
 		return tea.NewView("")
@@ -23,33 +24,20 @@ func (m Model) View() tea.View {
 
 	t := newTheme(m.dark)
 	now := time.Now()
+	if m.layout == LayoutList {
+		return fullScreen(m.listFrame(t, now))
+	}
+	return fullScreen(m.groupedFrame(t, now))
+}
+
+// groupedFrame renders the default layout: the filter line, the list
+// grouped under Kind headers (with a preview pane beside it when there is
+// room), and the footer.
+func (m Model) groupedFrame(t theme, now time.Time) string {
 	groups := m.visibleGroups()
 	rows := flatten(groups)
-
-	longestName := 0
-	for _, mt := range rows {
-		if n := len([]rune(mt.row.Project.Name)); n > longestName {
-			longestName = n
-		}
-	}
-	widestStatus := 1
-	times := make([]time.Time, 0, len(rows))
-	for _, mt := range rows {
-		st, loaded := m.statuses[mt.row.Project.Path]
-		if w := statusClusterWidth(st, loaded); w > widestStatus {
-			widestStatus = w
-		}
-		times = append(times, mt.row.LastVisit)
-	}
-
-	width, height := m.width, m.height
-	if width <= 0 {
-		width = 80
-	}
-	if height <= 0 {
-		height = 24
-	}
-	lay := ComputeLayout(longestName, widestStatus, times, now, width, height)
+	width, height := m.frameSize()
+	lay := m.computeLayout(rows, now, width, height)
 
 	var b strings.Builder
 	b.WriteString(m.filterLine(t))
@@ -69,7 +57,44 @@ func (m Model) View() tea.View {
 	b.WriteString("\n")
 	b.WriteString(m.footerView(t, width, len(rows), lay))
 
-	return fullScreen(b.String())
+	return b.String()
+}
+
+// frameSize is the terminal size to draw at, standing in a default for
+// each dimension until the first tea.WindowSizeMsg lands.
+func (m Model) frameSize() (width, height int) {
+	width, height = m.width, m.height
+	if width <= 0 {
+		width = 80
+	}
+	if height <= 0 {
+		height = 24
+	}
+	return width, height
+}
+
+// computeLayout sizes one frame from the rows it has to show. The name
+// column holds the Project name in the grouped layout and "kind/name" in
+// the list layout; the two layouts spend the same total width on their
+// other columns, so one budget serves both.
+func (m Model) computeLayout(rows []match, now time.Time, width, height int) Layout {
+	longestName, widestStatus := 0, 1
+	times := make([]time.Time, 0, len(rows))
+	for _, mt := range rows {
+		n := len([]rune(mt.row.Project.Name))
+		if m.layout == LayoutList {
+			n += len([]rune(mt.row.Project.Kind)) + 1 // "kind/"
+		}
+		if n > longestName {
+			longestName = n
+		}
+		st, loaded := m.statuses[mt.row.Project.Path]
+		if w := statusClusterWidth(st, loaded); w > widestStatus {
+			widestStatus = w
+		}
+		times = append(times, mt.row.LastVisit)
+	}
+	return ComputeLayout(longestName, widestStatus, times, now, width, height)
 }
 
 // fullScreen wraps content in a View drawn on the alternate screen. The
