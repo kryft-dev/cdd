@@ -15,6 +15,10 @@ import (
 // terminal's own foreground.
 type theme struct {
 	muted, green, yellow, blue, red, accent, rule color.Color
+
+	// selBg and selFg colour the list layout's selected row, which is
+	// marked by a background highlight rather than a caret.
+	selBg, selFg color.Color
 }
 
 // newTheme builds the theme for a light or dark background, using the
@@ -30,13 +34,14 @@ func newTheme(dark bool) theme {
 		red:    ld(c("#CF222E"), c("#F85149")),
 		accent: ld(c("#8250DF"), c("#A371F7")),
 		rule:   ld(c("#D0D7DE"), c("#30363D")),
+		selBg:  ld(c("#DDF4FF"), c("#1F3552")),
+		selFg:  ld(c("#0550AE"), c("#CAE8FF")),
 	}
 }
 
 func (t theme) fg(c color.Color) lipgloss.Style { return lipgloss.NewStyle().Foreground(c) }
 func (t theme) muted_() lipgloss.Style          { return t.fg(t.muted) }
 func (t theme) accentBold() lipgloss.Style      { return t.fg(t.accent).Bold(true) }
-func (t theme) match() lipgloss.Style           { return t.fg(t.accent).Bold(true).Underline(true) }
 func (t theme) rule_(w int) string {
 	if w < 0 {
 		w = 0
@@ -60,24 +65,33 @@ const (
 // statusCluster renders the compact coloured glyph cluster for one row's
 // status: "✓", "● ?", "● ↑3↓2", "—", "…", "!".
 func (t theme) statusCluster(st git.Status, loaded bool) string {
+	return t.statusClusterOn(lipgloss.NewStyle(), st, loaded)
+}
+
+// statusClusterOn renders statusCluster over base, which carries the row's
+// background in the list layout so the highlight runs through the glyphs
+// and the space between them.
+func (t theme) statusClusterOn(base lipgloss.Style, st git.Status, loaded bool) string {
+	f := func(c color.Color, s string) string { return base.Foreground(c).Render(s) }
+
 	if !loaded {
-		return t.muted_().Render(glyphLoading)
+		return f(t.muted, glyphLoading)
 	}
 	switch st.Kind {
 	case git.NotRepo:
-		return t.muted_().Render(glyphNotRepo)
+		return f(t.muted, glyphNotRepo)
 	case git.Unknown:
-		return t.fg(t.red).Render(glyphUnknown)
+		return f(t.red, glyphUnknown)
 	}
 
 	var parts []string
 	if st.State == git.Dirty {
-		parts = append(parts, t.fg(t.yellow).Render(glyphModified))
+		parts = append(parts, f(t.yellow, glyphModified))
 	} else {
-		parts = append(parts, t.fg(t.green).Render(glyphClean))
+		parts = append(parts, f(t.green, glyphClean))
 	}
 	if st.Untracked {
-		parts = append(parts, t.fg(t.blue).Render(glyphUntracked))
+		parts = append(parts, f(t.blue, glyphUntracked))
 	}
 	sync := ""
 	if st.Ahead > 0 {
@@ -87,9 +101,9 @@ func (t theme) statusCluster(st git.Status, loaded bool) string {
 		sync += glyphBehind + strconv.Itoa(st.Behind)
 	}
 	if sync != "" {
-		parts = append(parts, t.fg(t.accent).Render(sync))
+		parts = append(parts, f(t.accent, sync))
 	}
-	return strings.Join(parts, " ")
+	return strings.Join(parts, base.Render(" "))
 }
 
 // statusClusterWidth is the plain (uncoloured) width of statusCluster's
@@ -190,11 +204,14 @@ func previewSync(t theme, st git.Status, loaded bool) string {
 }
 
 // highlightMatches renders s with the rune positions in matched (indexes
-// into s, shifted by offset) rendered in the accent match style.
+// into s, shifted by offset) rendered in the accent match style. The match
+// style is derived from base, so a row background carries through the
+// highlighted runes as well as the plain ones.
 func highlightMatches(s string, matched []int, offset int, base lipgloss.Style, t theme) string {
 	if len(matched) == 0 {
 		return base.Render(s)
 	}
+	matchStyle := base.Foreground(t.accent).Bold(true).Underline(true)
 	set := make(map[int]bool, len(matched))
 	for _, i := range matched {
 		set[i-offset] = true
@@ -208,7 +225,7 @@ func highlightMatches(s string, matched []int, offset int, base lipgloss.Style, 
 		}
 		chunk := string(runes[i:j])
 		if set[i] {
-			b.WriteString(t.match().Render(chunk))
+			b.WriteString(matchStyle.Render(chunk))
 		} else {
 			b.WriteString(base.Render(chunk))
 		}
