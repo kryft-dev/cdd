@@ -1,6 +1,9 @@
 package picker
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 // nameFloor is the smallest a truncated Project name is ever shrunk to.
 const nameFloor = 8
@@ -101,6 +104,62 @@ func ComputeLayout(longestName, widestStatus int, times []time.Time, now time.Ti
 	l.ListHeight = max(height-fixed-1, 1) // -1 for the footer rule
 
 	return l
+}
+
+// frameSize is the terminal size to draw at, standing in a default for
+// each dimension until the first tea.WindowSizeMsg lands.
+func (m Model) frameSize() (width, height int) {
+	width, height = m.width, m.height
+	if width <= 0 {
+		width = 80
+	}
+	if height <= 0 {
+		height = 24
+	}
+	return width, height
+}
+
+// computeLayout sizes one frame from the rows it has to show. The name
+// column holds the Project name in the grouped layout and "kind/name" in
+// the list layout; the two layouts spend the same total width on their
+// other columns, so one budget serves both.
+func (m Model) computeLayout(rows []match, now time.Time, width, height int) Layout {
+	longestName, widestStatus := 0, 1
+	times := make([]time.Time, 0, len(rows))
+	for _, mt := range rows {
+		n := len([]rune(mt.row.Project.Name))
+		if m.layout == LayoutList {
+			n += len([]rune(mt.row.Project.Kind)) + 1 // "kind/"
+		}
+		if n > longestName {
+			longestName = n
+		}
+		st, loaded := m.statuses[mt.row.Project.Path]
+		if w := statusClusterWidth(st, loaded); w > widestStatus {
+			widestStatus = w
+		}
+		times = append(times, mt.row.LastVisit)
+	}
+	return ComputeLayout(longestName, widestStatus, times, now, width, height)
+}
+
+// window clips lines to exactly height lines, scrolled just far enough to
+// keep cursorLine on screen and padded with blanks when lines run short.
+// Both layouts draw their body through it, so the frame always comes out
+// at the terminal height.
+func window(lines []string, cursorLine, height int) string {
+	height = max(height, 1)
+	start := 0
+	if cursorLine >= height {
+		start = cursorLine - height + 1
+	}
+	out := make([]string, height)
+	for i := range out {
+		if idx := start + i; idx < len(lines) {
+			out[i] = lines[idx]
+		}
+	}
+	return strings.Join(out, "\n")
 }
 
 // widestTime is the widest rendered relative time among times, using the

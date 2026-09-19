@@ -43,7 +43,7 @@ func (m Model) groupedFrame(t theme, now time.Time) string {
 	b.WriteString(m.filterLine(t))
 	b.WriteString("\n")
 
-	list := m.listView(t, groups, rows, lay, now)
+	list := m.groupedBody(t, groups, rows, lay, now)
 	if lay.ShowPreview {
 		// The preview box is exactly ListHeight lines tall (lipgloss v2
 		// counts the border in Height), so joining it at the top keeps
@@ -58,43 +58,6 @@ func (m Model) groupedFrame(t theme, now time.Time) string {
 	b.WriteString(m.footerView(t, width, len(rows), lay))
 
 	return b.String()
-}
-
-// frameSize is the terminal size to draw at, standing in a default for
-// each dimension until the first tea.WindowSizeMsg lands.
-func (m Model) frameSize() (width, height int) {
-	width, height = m.width, m.height
-	if width <= 0 {
-		width = 80
-	}
-	if height <= 0 {
-		height = 24
-	}
-	return width, height
-}
-
-// computeLayout sizes one frame from the rows it has to show. The name
-// column holds the Project name in the grouped layout and "kind/name" in
-// the list layout; the two layouts spend the same total width on their
-// other columns, so one budget serves both.
-func (m Model) computeLayout(rows []match, now time.Time, width, height int) Layout {
-	longestName, widestStatus := 0, 1
-	times := make([]time.Time, 0, len(rows))
-	for _, mt := range rows {
-		n := len([]rune(mt.row.Project.Name))
-		if m.layout == LayoutList {
-			n += len([]rune(mt.row.Project.Kind)) + 1 // "kind/"
-		}
-		if n > longestName {
-			longestName = n
-		}
-		st, loaded := m.statuses[mt.row.Project.Path]
-		if w := statusClusterWidth(st, loaded); w > widestStatus {
-			widestStatus = w
-		}
-		times = append(times, mt.row.LastVisit)
-	}
-	return ComputeLayout(longestName, widestStatus, times, now, width, height)
 }
 
 // fullScreen wraps content in a View drawn on the alternate screen. The
@@ -124,11 +87,11 @@ func (m Model) filterLine(t theme) string {
 	return prompt + m.query
 }
 
-// listView renders the grouped list body: a header line per Kind, then its
-// rows, with the cursor's row carrying the caret and accent name. The body
-// is windowed to exactly Layout.ListHeight lines, scrolled so the cursor's
-// line (counting Kind header lines) stays on screen.
-func (m Model) listView(t theme, groups []kindGroup, rows []match, lay Layout, now time.Time) string {
+// groupedBody renders the grouped list body: a header line per Kind, then
+// its rows, with the cursor's row carrying the caret and accent name. The
+// body is windowed to exactly Layout.ListHeight lines, scrolled so the
+// cursor's line (counting Kind header lines) stays on screen.
+func (m Model) groupedBody(t theme, groups []kindGroup, rows []match, lay Layout, now time.Time) string {
 	var lines []string
 	i := 0
 	cursorLine := 0
@@ -147,18 +110,7 @@ func (m Model) listView(t theme, groups []kindGroup, rows []match, lay Layout, n
 		lines = append(lines, t.muted_().Render("no projects match"))
 	}
 
-	listH := max(lay.ListHeight, 1)
-	start := 0
-	if cursorLine >= listH {
-		start = cursorLine - listH + 1
-	}
-	windowed := make([]string, listH)
-	for i := range windowed {
-		if idx := start + i; idx < len(lines) {
-			windowed[i] = lines[idx]
-		}
-	}
-	return strings.Join(windowed, "\n")
+	return window(lines, cursorLine, lay.ListHeight)
 }
 
 // rowView renders one Project row: NAME  STATUS  LAST VISIT, with a caret
@@ -176,33 +128,18 @@ func (m Model) rowView(t theme, mt match, selected bool, lay Layout, now time.Ti
 		name = truncateName(name, lay.NameWidth)
 	}
 	offset := len([]rune(mt.row.Project.Path)) - len([]rune(mt.row.Project.Name))
-	name = padRight(highlightMatches(name, mt.matches, offset, nameStyle, t), lay.NameWidth)
+	name = padRightOn(plainStyle, highlightMatches(name, mt.matches, offset, nameStyle, t), lay.NameWidth)
 
 	st, loaded := m.statuses[mt.row.Project.Path]
-	status := padRight(t.statusCluster(st, loaded), lay.StatusWidth)
+	status := padRightOn(plainStyle, t.statusCluster(st, loaded), lay.StatusWidth)
 
 	rel := RelativeTime(mt.row.LastVisit, now)
 	if lay.ShortTime {
 		rel = RelativeTimeShort(mt.row.LastVisit, now)
 	}
-	rel = padLeft(t.muted_().Render(rel), lay.TimeWidth)
+	rel = padLeftOn(plainStyle, t.muted_().Render(rel), lay.TimeWidth)
 
 	return caret + name + "  " + status + "  " + rel
-}
-
-// padRight/padLeft pad plain or styled strings to a display width.
-func padRight(s string, w int) string {
-	if d := w - lipgloss.Width(s); d > 0 {
-		return s + strings.Repeat(" ", d)
-	}
-	return s
-}
-
-func padLeft(s string, w int) string {
-	if d := w - lipgloss.Width(s); d > 0 {
-		return strings.Repeat(" ", d) + s
-	}
-	return s
 }
 
 // previewView renders the right-hand preview box for the selected row.
@@ -212,7 +149,7 @@ func (m Model) previewView(t theme, rows []match, lay Layout, now time.Time) str
 		p := rows[m.cursor].row.Project
 		st, loaded := m.statuses[p.Path]
 
-		label := func(s string) string { return t.muted_().Render(padRight(s, 11)) }
+		label := func(s string) string { return t.muted_().Render(padRightOn(plainStyle, s, 11)) }
 		body.WriteString(t.muted_().Render(p.Kind+"/") + t.accentBold().Render(p.Name) + "\n\n")
 		body.WriteString(label("path") + p.Path + "\n")
 		if loaded && st.Kind == git.Found {

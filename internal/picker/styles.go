@@ -49,6 +49,28 @@ func (t theme) rule_(w int) string {
 	return t.fg(t.rule).Render(strings.Repeat("─", w))
 }
 
+// plainStyle is the zero style: the base a layout passes when its rows
+// carry no background of their own.
+var plainStyle = lipgloss.NewStyle()
+
+// padRightOn and padLeftOn pad a plain or styled string to a display
+// width, putting the padding through base so a row background covers it
+// too. The grouped layout passes plainStyle; the list layout passes the
+// selected row's background.
+func padRightOn(base lipgloss.Style, s string, w int) string {
+	if d := w - lipgloss.Width(s); d > 0 {
+		return s + base.Render(strings.Repeat(" ", d))
+	}
+	return s
+}
+
+func padLeftOn(base lipgloss.Style, s string, w int) string {
+	if d := w - lipgloss.Width(s); d > 0 {
+		return base.Render(strings.Repeat(" ", d)) + s
+	}
+	return s
+}
+
 // Status glyphs, shared by the row cluster, the preview pane and the
 // legend.
 const (
@@ -65,7 +87,7 @@ const (
 // statusCluster renders the compact coloured glyph cluster for one row's
 // status: "✓", "● ?", "● ↑3↓2", "—", "…", "!".
 func (t theme) statusCluster(st git.Status, loaded bool) string {
-	return t.statusClusterOn(lipgloss.NewStyle(), st, loaded)
+	return t.statusClusterOn(plainStyle, st, loaded)
 }
 
 // statusClusterOn renders statusCluster over base, which carries the row's

@@ -50,18 +50,7 @@ func (m Model) listBody(t theme, rows []match, lay Layout, now time.Time) string
 		lines = append(lines, t.muted_().Render("no projects match"))
 	}
 
-	listH := max(lay.ListHeight, 1)
-	start := 0
-	if m.cursor >= listH {
-		start = m.cursor - listH + 1
-	}
-	windowed := make([]string, listH)
-	for i := range windowed {
-		if idx := start + i; idx < len(lines) {
-			windowed[i] = lines[idx]
-		}
-	}
-	return strings.Join(windowed, "\n")
+	return window(lines, m.cursor, lay.ListHeight)
 }
 
 // listRowView renders one row as "▌ STATUS kind/NAME   LAST VISIT", padded
@@ -125,20 +114,4 @@ func (m Model) listNameField(t theme, mt match, lay Layout, base, kindStyle, nam
 	field := highlightMatches(kind, mt.matches, kindOffset, kindStyle, t) +
 		highlightMatches(name, mt.matches, nameOffset, nameStyle, t)
 	return padRightOn(base, field, lay.NameWidth)
-}
-
-// padRightOn and padLeftOn pad a styled string to a display width, putting
-// the padding through base so a row background covers it too.
-func padRightOn(base lipgloss.Style, s string, w int) string {
-	if d := w - lipgloss.Width(s); d > 0 {
-		return s + base.Render(strings.Repeat(" ", d))
-	}
-	return s
-}
-
-func padLeftOn(base lipgloss.Style, s string, w int) string {
-	if d := w - lipgloss.Width(s); d > 0 {
-		return base.Render(strings.Repeat(" ", d)) + s
-	}
-	return s
 }
