@@ -40,6 +40,10 @@ _Avoid_: Import, index, crawl, rebuild
 The interactive screen that lists Projects and lets the user choose one to Jump to.
 _Avoid_: Menu, list, finder, selector
 
+**Layout**:
+One of the arrangements in which the Picker draws Projects: the Grouped Layout puts them under Kind headers, the List Layout in one flat run.
+_Avoid_: View, mode, style, theme, skin
+
 **Wrapper**:
 The shell function installed into the user's shell that turns a Project chosen in the Picker into a Jump.
 _Avoid_: Hook, integration, plugin, shim, alias
