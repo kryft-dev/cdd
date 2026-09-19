@@ -93,8 +93,7 @@ type statusResultMsg struct {
 // Init fires one command per row that fetches its git status, fanned out
 // through tea.Batch and bounded by a semaphore so a large History does not
 // spawn unbounded concurrent git processes. It also requests the terminal
-// background colour, which corrects the palette Run already settled on
-// should its own synchronous query have gone unanswered.
+// background colour, used to pick the light or dark palette.
 func (m Model) Init() tea.Cmd {
 	sem := make(chan struct{}, concurrency)
 	cmds := make([]tea.Cmd, 0, len(m.rows)+1)
