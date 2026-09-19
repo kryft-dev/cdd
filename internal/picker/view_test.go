@@ -17,11 +17,14 @@ import (
 // and windowing the body to the terminal.
 var bothLayouts = []picker.LayoutStyle{picker.LayoutGrouped, picker.LayoutList}
 
-// sizedModel builds a Model in the given layout and sends it one
-// tea.WindowSizeMsg, the state every View test starts from.
+// sizedModel builds a Model in the given layout, sends it one
+// tea.WindowSizeMsg and reports the terminal's background as dark: a sized
+// terminal with a settled palette is the state every View test starts
+// from, since nothing is drawn before the palette settles.
 func sizedModel(rows []picker.Row, layout picker.LayoutStyle, width, height int) picker.Model {
 	m := picker.NewModel(rows, noopStatus, picker.Options{Layout: layout})
 	next, _ := m.Update(tea.WindowSizeMsg{Width: width, Height: height})
+	next, _ = next.(picker.Model).Update(tea.BackgroundColorMsg{Color: lipgloss.Color("#0D1117")})
 	return next.(picker.Model)
 }
 
@@ -220,26 +223,5 @@ func TestModel_View_UsesAlternateScreen(t *testing.T) {
 	empty := picker.NewModel(nil, noopStatus, picker.Options{})
 	if !empty.View().AltScreen {
 		t.Errorf("empty-History View().AltScreen = false, want true")
-	}
-}
-
-// TestModel_View_FirstFrameNeedsNoRepaint pins the frame drawn before the
-// terminal has reported its background to the frame drawn after a dark
-// report. The reply to that query lands a frame or two in; opening in the
-// light palette meant a dark terminal saw one washed-out frame, border box
-// and all, flash past on launch.
-func TestModel_View_FirstFrameNeedsNoRepaint(t *testing.T) {
-	for _, layout := range bothLayouts {
-		t.Run(string(layout), func(t *testing.T) {
-			m := sizedModel(manyRows(5), layout, 110, 30)
-			before := m.View().Content
-
-			next, _ := m.Update(tea.BackgroundColorMsg{Color: lipgloss.Color("#0D1117")})
-			after := next.(picker.Model).View().Content
-
-			if before != after {
-				t.Errorf("the first frame is not the dark palette's frame; it repaints when the background report lands:\nbefore:\n%s\nafter:\n%s", before, after)
-			}
-		})
 	}
 }

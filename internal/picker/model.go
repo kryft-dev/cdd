@@ -2,6 +2,7 @@ package picker
 
 import (
 	"context"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/sahilm/fuzzy"
@@ -42,6 +43,11 @@ type Model struct {
 
 	width, height int
 	dark          bool
+
+	// paletteSettled reports whether the terminal has had its say about
+	// its background colour, one way or the other. Nothing is drawn until
+	// it has.
+	paletteSettled bool
 
 	chosen    bool
 	chosenRow Row
@@ -90,14 +96,27 @@ type statusResultMsg struct {
 	status git.Status
 }
 
+// paletteDeadline is how long the first frame waits on the terminal's
+// background colour before being drawn in the dark palette anyway. A
+// terminal answers in a few milliseconds; one that never answers must not
+// hold the Picker off the screen.
+const paletteDeadline = 50 * time.Millisecond
+
+// paletteDeadlineMsg says the terminal has had long enough to report its
+// background colour.
+type paletteDeadlineMsg struct{}
+
 // Init fires one command per row that fetches its git status, fanned out
 // through tea.Batch and bounded by a semaphore so a large History does not
 // spawn unbounded concurrent git processes. It also requests the terminal
-// background colour, used to pick the light or dark palette.
+// background colour, which the first frame waits on, and starts the
+// deadline that wait is given.
 func (m Model) Init() tea.Cmd {
 	sem := make(chan struct{}, concurrency)
-	cmds := make([]tea.Cmd, 0, len(m.rows)+1)
-	cmds = append(cmds, tea.RequestBackgroundColor)
+	cmds := make([]tea.Cmd, 0, len(m.rows)+2)
+	cmds = append(cmds, tea.RequestBackgroundColor, tea.Tick(paletteDeadline, func(time.Time) tea.Msg {
+		return paletteDeadlineMsg{}
+	}))
 	for _, r := range m.rows {
 		cmds = append(cmds, statusCmd(m.status, r.Project.Path, sem))
 	}

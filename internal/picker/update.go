@@ -5,8 +5,9 @@ import (
 )
 
 // Update handles one message: a key press, a status result landing, a
-// terminal resize, or the background colour report. It never blocks and
-// never loses state (query, cursor, loaded statuses) across a resize.
+// terminal resize, the background colour report, or the deadline the first
+// frame gives that report. It never blocks and never loses state (query,
+// cursor, loaded statuses) across a resize.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case statusResultMsg:
@@ -15,6 +16,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.BackgroundColorMsg:
 		m.dark = msg.IsDark()
+		m.paletteSettled = true
+		return m, nil
+
+	case paletteDeadlineMsg:
+		m.paletteSettled = true
 		return m, nil
 
 	case tea.WindowSizeMsg:

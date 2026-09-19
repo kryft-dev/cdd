@@ -18,6 +18,13 @@ func (m Model) View() tea.View {
 	if m.quitting {
 		return tea.NewView("")
 	}
+	// Nothing is drawn until the terminal has reported its background
+	// colour or paletteDeadline has passed: a frame drawn in the wrong
+	// palette repaints in the right one a moment later, which is the
+	// flash a user sees on launch.
+	if !m.paletteSettled {
+		return fullScreen("")
+	}
 	if len(m.rows) == 0 {
 		return fullScreen(m.emptyHistoryView())
 	}
