@@ -167,6 +167,51 @@ func TestModel_ListLayout_RowsShareEqualWidth(t *testing.T) {
 	}
 }
 
+// TestModel_ListLayout_LongKindKeepsTheName verifies that a Kind too long
+// for the name column is the part that gives way: the Project name stays
+// on screen, and it keeps its own styling rather than being muted along
+// with the Kind.
+func TestModel_ListLayout_LongKindKeepsTheName(t *testing.T) {
+	rows := []picker.Row{
+		{Project: picker.Project{
+			Kind: "infrastructure-platform",
+			Name: "obs",
+			Path: "/root/infrastructure-platform/obs",
+		}},
+	}
+	m := listModel(rows, 34, 12) // narrow enough that "kind/" alone overruns
+
+	lines := strings.Split(m.View().Content, "\n")
+	row := lines[0]
+	if !strings.Contains(plain(row), "obs") {
+		t.Fatalf("row = %q, want the Project name %q still drawn", plain(row), "obs")
+	}
+
+	// The Kind is muted and the selected row's name is not: the two
+	// segments must not share one styling run.
+	name := styleOf(row, "obs")
+	kind := styleOf(row, "infra")
+	if name == "" {
+		t.Fatalf("row = %q, could not find a styling run around the name", row)
+	}
+	if name == kind {
+		t.Errorf("name and Kind share the styling run %q, want the Kind muted and the name not", name)
+	}
+}
+
+// styleOf returns the SGR escape introducing the run of styled text that
+// contains want, or "" when want is not found in a styled run.
+func styleOf(line, want string) string {
+	for _, run := range strings.Split(line, "\x1b[m") {
+		if i := strings.LastIndex(run, "m"); i >= 0 && strings.Contains(run[i:], want) {
+			if j := strings.Index(run, "\x1b["); j >= 0 {
+				return run[j : i+1]
+			}
+		}
+	}
+	return ""
+}
+
 // TestModel_ListLayout_FrameMatchesTerminalHeight pins the list layout's
 // frame to exactly the terminal height, at every size the grouped layout
 // is pinned at.
