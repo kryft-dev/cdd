@@ -60,6 +60,9 @@ func TestLoadFromMinimalAppliesDefaults(t *testing.T) {
 	if cfg.Keys.Vim {
 		t.Errorf("Keys.Vim = true, want false")
 	}
+	if cfg.Picker.Layout != "grouped" {
+		t.Errorf("Picker.Layout = %q, want %q", cfg.Picker.Layout, "grouped")
+	}
 }
 
 func TestLoadFromEachKey(t *testing.T) {
@@ -71,6 +74,8 @@ include_hidden = true
 max_visits = 42
 [keys]
 vim = true
+[picker]
+layout = "list"
 `
 	path := writeConfig(t, body)
 
@@ -99,6 +104,9 @@ vim = true
 	}
 	if !cfg.Keys.Vim {
 		t.Errorf("Keys.Vim = false, want true")
+	}
+	if cfg.Picker.Layout != "list" {
+		t.Errorf("Picker.Layout = %q, want %q", cfg.Picker.Layout, "list")
 	}
 }
 
@@ -154,6 +162,25 @@ max_visits = 0
 	}
 }
 
+func TestLoadFromUnknownPickerLayoutRejected(t *testing.T) {
+	root := t.TempDir()
+	body := `root = "` + root + `"
+[picker]
+layout = "fancy"
+`
+	path := writeConfig(t, body)
+
+	_, err := config.LoadFrom(path)
+	if err == nil {
+		t.Fatal(`LoadFrom layout = "fancy": got nil error, want error`)
+	}
+	for _, want := range []string{"picker.layout", "fancy", "grouped", "list"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error = %q, want it to contain %q", err.Error(), want)
+		}
+	}
+}
+
 func TestLoadFromRootNotDirectoryRejected(t *testing.T) {
 	file, err := os.CreateTemp(t.TempDir(), "root-*")
 	if err != nil {
@@ -192,7 +219,7 @@ func TestLoadFromRootMissing(t *testing.T) {
 
 func TestExampleConfig(t *testing.T) {
 	got := config.ExampleConfig()
-	for _, want := range []string{"root =", "exclude =", "include_hidden =", "[history]", "max_visits =", "[keys]", "vim ="} {
+	for _, want := range []string{"root =", "exclude =", "include_hidden =", "[history]", "max_visits =", "[keys]", "vim =", "[picker]", "layout ="} {
 		if !strings.Contains(got, want) {
 			t.Errorf("ExampleConfig() = %q, want it to contain %q", got, want)
 		}
