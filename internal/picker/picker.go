@@ -43,6 +43,22 @@ type Row struct {
 // without blocking the screen.
 type StatusFunc func(ctx context.Context, dir string) git.Status
 
+// LayoutStyle names one of the Picker's two layouts. It is a standing
+// preference, set once in config.toml, not a per-session toggle.
+type LayoutStyle string
+
+const (
+	// LayoutGrouped is the default layout: rows grouped under Kind
+	// headers, a caret on the selected row, and the filter line on top.
+	LayoutGrouped LayoutStyle = "grouped"
+
+	// LayoutList is the flat fzf-style layout: no Kind headers, rows in
+	// History order with "kind/" muted before each Project name, the
+	// filter prompt below the list, and a bar plus background highlight
+	// on the selected row.
+	LayoutList LayoutStyle = "list"
+)
+
 // Options configures a Run of the Picker.
 type Options struct {
 	// Vim selects the vim key map: the list is focused on open, j/k move,
@@ -55,6 +71,10 @@ type Options struct {
 
 	// Query seeds the filter line.
 	Query string
+
+	// Layout selects which layout is drawn. The zero value is
+	// LayoutGrouped.
+	Layout LayoutStyle
 }
 
 // concurrency bounds how many StatusFunc calls run at once, so a large
