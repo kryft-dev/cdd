@@ -1,6 +1,6 @@
 // Package config loads cdd's configuration: the Root to search for Kinds
 // and Projects, Exclude globs, hidden-directory handling, and the History
-// and Picker key settings.
+// and Picker settings.
 package config
 
 import (
@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"strconv"
 	"strings"
 
 	toml "github.com/pelletier/go-toml/v2"
@@ -33,6 +35,9 @@ type Config struct {
 
 	// Keys configures the Picker's key map.
 	Keys Keys `toml:"keys"`
+
+	// Picker configures the Picker's appearance.
+	Picker Picker `toml:"picker"`
 }
 
 // History configures cdd's History of Visits.
@@ -50,6 +55,20 @@ type Keys struct {
 	Vim bool `toml:"vim"`
 }
 
+// Picker configures the Picker's appearance.
+type Picker struct {
+	// Layout selects which layout the Picker draws: "grouped" (the
+	// default) groups rows under Kind headers with a caret on the
+	// selected row; "list" is a flat fzf-style list with the filter
+	// prompt below it and a background-highlighted selected row. Both
+	// draw the same preview pane.
+	Layout string `toml:"layout"`
+}
+
+// pickerLayouts are the values Picker.Layout accepts, in the order the
+// error message lists them.
+var pickerLayouts = []string{"grouped", "list"}
+
 // defaultConfig returns a Config with every default applied, before a
 // config.toml's fields are decoded on top of it.
 func defaultConfig() Config {
@@ -58,6 +77,7 @@ func defaultConfig() Config {
 		IncludeHidden: false,
 		History:       History{MaxVisits: 1000},
 		Keys:          Keys{Vim: false},
+		Picker:        Picker{Layout: "grouped"},
 	}
 }
 
@@ -70,6 +90,8 @@ include_hidden = false
 max_visits = 1000         # must be >= 1
 [keys]
 vim = false
+[picker]
+layout = "grouped"        # or "list" for the flat fzf-style layout
 `
 
 // ExampleConfig returns an example config.toml, for the cli package to print
@@ -143,7 +165,8 @@ func describeDecodeError(err error) error {
 
 // validate checks the decoded Config against the rules Load and LoadFrom
 // enforce: Root is required, expanded, and must be an existing directory;
-// History.MaxVisits must be at least 1.
+// History.MaxVisits must be at least 1; Picker.Layout must name a known
+// layout.
 func (c *Config) validate(path string) error {
 	if c.Root == "" {
 		return fmt.Errorf("config: %s: root is required\n\nExample config.toml:\n\n%s", path, exampleConfigBody)
@@ -170,7 +193,21 @@ func (c *Config) validate(path string) error {
 		return fmt.Errorf("config: %s: history.max_visits must be >= 1, got %d", path, c.History.MaxVisits)
 	}
 
+	if !slices.Contains(pickerLayouts, c.Picker.Layout) {
+		return fmt.Errorf("config: %s: picker.layout must be one of %s, got %q", path, quoteList(pickerLayouts), c.Picker.Layout)
+	}
+
 	return nil
+}
+
+// quoteList renders values as a quoted, comma-separated list, for the
+// error naming the layouts picker.layout accepts.
+func quoteList(values []string) string {
+	quoted := make([]string, len(values))
+	for i, v := range values {
+		quoted[i] = strconv.Quote(v)
+	}
+	return strings.Join(quoted, ", ")
 }
 
 // expandHome expands a leading "~" in path to the user's home directory.
