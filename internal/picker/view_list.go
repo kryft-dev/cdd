@@ -16,7 +16,7 @@ const selBar = "▌"
 // the filter prompt below them where fzf users expect it, and the shared
 // preview pane and footer.
 func (m Model) listFrame(t theme, now time.Time) string {
-	rows := m.visibleMatches()
+	rows := m.visibleRows()
 	width, height := m.frameSize()
 	lay := m.computeLayout(rows, now, width, height)
 
@@ -94,10 +94,16 @@ func (m Model) listRowView(t theme, mt match, selected bool, lay Layout, now tim
 	return lead + base.Render(strings.Repeat(" ", gap)) + rel + base.Render(" ")
 }
 
+// listNameFloor is the least room the Project name keeps in the name
+// column. A Kind long enough to crowd it out is truncated instead: the
+// name is what the user is reading for.
+const listNameFloor = 4
+
 // listNameField renders "kind/name" padded to Layout.NameWidth, with the
 // Kind muted ahead of the Project name and any fuzzy-match runes
-// highlighted. When the pair is too wide the Project name is truncated,
-// never the Kind, unless the Kind alone already fills the column.
+// highlighted. The Project name is truncated first when the pair is too
+// wide, and the Kind once the name is down to listNameFloor. Each segment
+// keeps its own style, so a long Kind never mutes the name with it.
 func (m Model) listNameField(t theme, mt match, lay Layout, base, kindStyle, nameStyle lipgloss.Style) string {
 	p := mt.row.Project
 	kind := p.Kind + "/"
@@ -109,12 +115,12 @@ func (m Model) listNameField(t theme, mt match, lay Layout, base, kindStyle, nam
 	kindOffset := pathLen - len([]rune(kind)) - len([]rune(name))
 	nameOffset := pathLen - len([]rune(name))
 
-	nameWidth := lay.NameWidth - len([]rune(kind))
-	if nameWidth < 1 {
-		field := truncateName(kind+name, lay.NameWidth)
-		return padRightOn(base, highlightMatches(field, mt.matches, kindOffset, kindStyle, t), lay.NameWidth)
+	kindWidth := len([]rune(kind))
+	if over := kindWidth - (lay.NameWidth - listNameFloor); over > 0 {
+		kindWidth = max(kindWidth-over, 0)
+		kind = truncateName(kind, kindWidth)
 	}
-	name = truncateName(name, nameWidth)
+	name = truncateName(name, max(lay.NameWidth-kindWidth, 0))
 
 	field := highlightMatches(kind, mt.matches, kindOffset, kindStyle, t) +
 		highlightMatches(name, mt.matches, nameOffset, nameStyle, t)
