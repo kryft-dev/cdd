@@ -136,7 +136,7 @@ func (m *Model) clampCursor() {
 
 // lastIndex is the index of the last visible row, or 0 when there are none.
 func (m Model) lastIndex() int {
-	n := len(flatten(m.visibleGroups()))
+	n := len(m.visibleRows())
 	if n == 0 {
 		return 0
 	}
@@ -155,7 +155,7 @@ func (m *Model) backspace() {
 
 // choose selects the row under the cursor, when there is one, and quits.
 func (m Model) choose() (tea.Model, tea.Cmd) {
-	rows := flatten(m.visibleGroups())
+	rows := m.visibleRows()
 	if m.cursor >= 0 && m.cursor < len(rows) {
 		m.chosen = true
 		m.chosenRow = rows[m.cursor].row

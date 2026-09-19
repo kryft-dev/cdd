@@ -32,6 +32,7 @@ type Model struct {
 	rows   []Row
 	status StatusFunc
 	vim    bool
+	layout LayoutStyle
 
 	query  string
 	focus  focus
@@ -55,10 +56,15 @@ func NewModel(rows []Row, status StatusFunc, opts Options) Model {
 	if opts.Vim {
 		f = focusList
 	}
+	layout := opts.Layout
+	if layout == "" {
+		layout = LayoutGrouped
+	}
 	return Model{
 		rows:     rows,
 		status:   status,
 		vim:      opts.Vim,
+		layout:   layout,
 		query:    opts.Query,
 		focus:    f,
 		statuses: make(map[string]git.Status, len(rows)),
@@ -165,6 +171,17 @@ func groupByKind(matches []match) []kindGroup {
 // filtering operate on.
 func (m Model) visibleGroups() []kindGroup {
 	return groupByKind(m.visibleMatches())
+}
+
+// visibleRows returns the current query's matches in the order the active
+// layout draws them: grouped by Kind for LayoutGrouped, flat History order
+// for LayoutList. It is the order the cursor indexes into.
+func (m Model) visibleRows() []match {
+	matches := m.visibleMatches()
+	if m.layout == LayoutList {
+		return matches
+	}
+	return flatten(groupByKind(matches))
 }
 
 // flatten lays a Kind grouping out as a single ordered slice of matches,
