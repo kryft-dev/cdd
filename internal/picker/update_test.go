@@ -123,8 +123,8 @@ func TestModel_Update_StatusResult(t *testing.T) {
 	if !strings.Contains(alphaLine, "●") {
 		t.Errorf("alpha row = %q, want it to contain the dirty glyph ●", alphaLine)
 	}
-	if !strings.Contains(betaLine, "—") {
-		t.Errorf("beta row = %q, want it to contain the not-a-repo glyph —", betaLine)
+	if !strings.Contains(betaLine, "!") {
+		t.Errorf("beta row = %q, want it to contain the unknown glyph !, since git could not read it", betaLine)
 	}
 }
 

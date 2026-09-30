@@ -79,12 +79,11 @@ const (
 	glyphAhead     = "↑"
 	glyphBehind    = "↓"
 	glyphUnknown   = "!"
-	glyphNotRepo   = "—"
 	glyphLoading   = "…"
 )
 
 // statusClusterOn renders the compact coloured glyph cluster for one row's
-// status ("✓", "● ?", "● ↑3↓2", "—", "…", "!") over base, which carries the
+// status ("✓", "● ?", "● ↑3↓2", "…", "!") over base, which carries the
 // row's background in the list layout so the highlight runs through the
 // glyphs and the space between them.
 func (t theme) statusClusterOn(base lipgloss.Style, st git.Status, loaded bool) string {
@@ -93,10 +92,9 @@ func (t theme) statusClusterOn(base lipgloss.Style, st git.Status, loaded bool) 
 	if !loaded {
 		return f(t.muted, glyphLoading)
 	}
-	switch st.Kind {
-	case git.NotRepo:
-		return f(t.muted, glyphNotRepo)
-	case git.Unknown:
+	// A Project's .git can still fail to read, or vanish after the Picker
+	// opened; git's answer is then as unknown as a timeout.
+	if st.Kind != git.Found {
 		return f(t.red, glyphUnknown)
 	}
 
@@ -157,7 +155,6 @@ func (t theme) legend() string {
 		f(t.accent, glyphAhead, "ahead"),
 		f(t.accent, glyphBehind, "behind"),
 		f(t.red, glyphUnknown, "unknown"),
-		f(t.muted, glyphNotRepo, "not a repo"),
 		f(t.muted, glyphLoading, "loading"),
 	}, "  ")
 }
@@ -179,7 +176,7 @@ func previewStatusWords(t theme, st git.Status, loaded bool) string {
 	}
 	switch st.Kind {
 	case git.NotRepo:
-		return t.muted_().Render(glyphNotRepo + " not a repository")
+		return t.fg(t.red).Render(glyphUnknown + " git could not read it")
 	case git.Unknown:
 		return t.fg(t.red).Render(glyphUnknown + " git timed out")
 	}
@@ -197,8 +194,8 @@ func previewStatusWords(t theme, st git.Status, loaded bool) string {
 }
 
 // previewSync spells the ahead/behind/upstream state out, for the preview
-// pane's "sync" line. It is "" when there is nothing to report (not a
-// repository, unknown, or still loading).
+// pane's "sync" line. It is "" when there is nothing to report (git could
+// not read the repository, or it is still loading).
 func previewSync(t theme, st git.Status, loaded bool) string {
 	if !loaded || st.Kind != git.Found {
 		return ""
