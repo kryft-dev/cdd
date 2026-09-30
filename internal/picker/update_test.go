@@ -13,8 +13,8 @@ import (
 
 func twoRowModel(opts picker.Options) picker.Model {
 	rows := []picker.Row{
-		{Project: picker.Project{Kind: "work", Name: "alpha", Path: "/root/work/alpha"}},
-		{Project: picker.Project{Kind: "work", Name: "beta", Path: "/root/work/beta"}},
+		{Project: picker.Project{Dir: "~/work/", Name: "alpha", Path: "/root/work/alpha"}},
+		{Project: picker.Project{Dir: "~/work/", Name: "beta", Path: "/root/work/beta"}},
 	}
 	return picker.NewModel(rows, noopStatus, opts)
 }
@@ -70,8 +70,8 @@ func TestModel_Update_StatusResult(t *testing.T) {
 	}
 	m := picker.NewModel(
 		[]picker.Row{
-			{Project: picker.Project{Kind: "work", Name: "alpha", Path: "/root/work/alpha"}},
-			{Project: picker.Project{Kind: "work", Name: "beta", Path: "/root/work/beta"}},
+			{Project: picker.Project{Dir: "~/work/", Name: "alpha", Path: "/root/work/alpha"}},
+			{Project: picker.Project{Dir: "~/work/", Name: "beta", Path: "/root/work/beta"}},
 		},
 		keyedStatus(statuses),
 		picker.Options{},

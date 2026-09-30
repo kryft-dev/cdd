@@ -2,8 +2,8 @@
 // user choose one to Jump to.
 //
 // The Picker never computes History order itself: Run receives rows already
-// ordered by the caller (History order, most recent Visit first, then
-// never-visited Projects A-Z) and only filters and displays them.
+// ordered by the caller (History order, most recent Visit first) and only
+// filters and displays them.
 package picker
 
 import (
@@ -17,11 +17,16 @@ import (
 	"github.com/kryft-dev/cdd/internal/git"
 )
 
-// Project is the identity of one Picker row: its Kind, its Name, and its
-// absolute path on disk.
+// Project is the identity of one Picker row: its parent directory as shown,
+// its name, and its absolute path on disk.
 type Project struct {
-	Kind string
+	// Dir is the Project's parent directory as the row shows it, ending in
+	// a separator, with the home directory shortened to "~" (e.g.
+	// "~/Developer/tools/").
+	Dir string
+	// Name is the Project directory's own name, e.g. "cdd".
 	Name string
+	// Path is the Project's absolute path, where a Jump lands.
 	Path string
 }
 
@@ -48,7 +53,7 @@ type StatusFunc func(ctx context.Context, dir string) git.Status
 type LayoutStyle string
 
 // LayoutList is the flat fzf-style layout, and the default: rows in History
-// order with "kind/" muted before each Project name, the filter prompt
+// order with the parent directory muted before each Project name, the filter prompt
 // below the list, and a bar plus background highlight on the selected row.
 const LayoutList LayoutStyle = "list"
 

@@ -36,14 +36,14 @@ var ansi = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 // plain is s with its styling escapes removed, as the terminal shows it.
 func plain(s string) string { return ansi.ReplaceAllString(s, "") }
 
-// manyRows builds n rows all in the same Kind, so the list body is long
+// manyRows builds n rows all in the same directory, so the list body is long
 // enough to need scrolling at a modest terminal height.
 func manyRows(n int) []picker.Row {
 	rows := make([]picker.Row, n)
 	for i := range rows {
 		name := "project-" + string(rune('a'+i%26)) + string(rune('0'+i/26))
 		rows[i] = picker.Row{Project: picker.Project{
-			Kind: "work",
+			Dir:  "~/work/",
 			Name: name,
 			Path: "/root/work/" + name,
 		}}
@@ -98,13 +98,13 @@ func TestModel_View_ListWindowedToHeight(t *testing.T) {
 // row out so the selected row's background spans the pane.
 func TestModel_View_RowsShareEqualWidth(t *testing.T) {
 	rows := []picker.Row{
-		{Project: picker.Project{Kind: "work", Name: "alpha", Path: "/root/work/alpha"}},
-		{Project: picker.Project{Kind: "work", Name: "beta", Path: "/root/work/beta"}},
-		{Project: picker.Project{Kind: "work", Name: "gamma", Path: "/root/work/gamma"}},
+		{Project: picker.Project{Dir: "~/work/", Name: "alpha", Path: "/root/work/alpha"}},
+		{Project: picker.Project{Dir: "~/work/", Name: "beta", Path: "/root/work/beta"}},
+		{Project: picker.Project{Dir: "~/work/", Name: "gamma", Path: "/root/work/gamma"}},
 	}
 	// Each layout looks for its own row text.
 	label := map[picker.LayoutStyle]func(picker.Row) string{
-		picker.LayoutList: func(r picker.Row) string { return r.Project.Kind + "/" + r.Project.Name },
+		picker.LayoutList: func(r picker.Row) string { return r.Project.Dir + r.Project.Name },
 	}
 
 	for _, layout := range allLayouts {

@@ -23,14 +23,14 @@ func noopStatus(context.Context, string) git.Status {
 	return git.Status{Kind: git.NotRepo}
 }
 
-func rowsForKindOrder() []picker.Row {
-	// Rows in the order they were given, which the Picker keeps: rows of
-	// one Kind are not pulled together.
+func historyRows() []picker.Row {
+	// Rows in the order they were given, which the Picker keeps: rows
+	// sharing a parent directory are not pulled together.
 	return []picker.Row{
-		{Project: picker.Project{Kind: "tools", Name: "cdd", Path: "/root/tools/cdd"}, LastVisit: time.Unix(3000, 0)},
-		{Project: picker.Project{Kind: "work", Name: "api", Path: "/root/work/api"}, LastVisit: time.Unix(5000, 0)},
-		{Project: picker.Project{Kind: "oss", Name: "lib", Path: "/root/oss/lib"}, LastVisit: time.Unix(1000, 0)},
-		{Project: picker.Project{Kind: "tools", Name: "dotfiles", Path: "/root/tools/dotfiles"}, LastVisit: time.Unix(2000, 0)},
+		{Project: picker.Project{Dir: "~/tools/", Name: "cdd", Path: "/root/tools/cdd"}, LastVisit: time.Unix(3000, 0)},
+		{Project: picker.Project{Dir: "~/work/", Name: "api", Path: "/root/work/api"}, LastVisit: time.Unix(5000, 0)},
+		{Project: picker.Project{Dir: "~/oss/", Name: "lib", Path: "/root/oss/lib"}, LastVisit: time.Unix(1000, 0)},
+		{Project: picker.Project{Dir: "~/tools/", Name: "dotfiles", Path: "/root/tools/dotfiles"}, LastVisit: time.Unix(2000, 0)},
 	}
 }
 
@@ -57,9 +57,9 @@ func chosenAt(t *testing.T, m picker.Model, i int) picker.Row {
 // rows to those whose Project path fuzzy-matches it.
 func TestModel_FuzzyFilter(t *testing.T) {
 	rows := []picker.Row{
-		{Project: picker.Project{Kind: "work", Name: "api-gateway", Path: "/root/work/api-gateway"}},
-		{Project: picker.Project{Kind: "work", Name: "billing", Path: "/root/work/billing"}},
-		{Project: picker.Project{Kind: "oss", Name: "bubbletea", Path: "/root/oss/bubbletea"}},
+		{Project: picker.Project{Dir: "~/work/", Name: "api-gateway", Path: "/root/work/api-gateway"}},
+		{Project: picker.Project{Dir: "~/work/", Name: "billing", Path: "/root/work/billing"}},
+		{Project: picker.Project{Dir: "~/oss/", Name: "bubbletea", Path: "/root/oss/bubbletea"}},
 	}
 	m := picker.NewModel(rows, noopStatus, picker.Options{})
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})

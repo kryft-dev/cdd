@@ -21,7 +21,7 @@ func toRows(latest []history.Visit, counts map[string]int, home string) []picker
 	for i, v := range latest {
 		rows[i] = picker.Row{
 			Project: picker.Project{
-				Kind: shortenHome(filepath.Dir(v.Project), home),
+				Dir:  shownDir(filepath.Dir(v.Project), home),
 				Name: filepath.Base(v.Project),
 				Path: v.Project,
 			},
@@ -30,6 +30,16 @@ func toRows(latest []history.Visit, counts map[string]int, home string) []picker
 		}
 	}
 	return rows
+}
+
+// shownDir writes dir as a row shows it: ending in a separator, with a
+// leading home replaced by "~".
+func shownDir(dir, home string) string {
+	dir = shortenHome(dir, home)
+	if strings.HasSuffix(dir, string(filepath.Separator)) {
+		return dir
+	}
+	return dir + string(filepath.Separator)
 }
 
 // shortenHome writes dir with a leading home replaced by "~".
