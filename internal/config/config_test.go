@@ -3,6 +3,7 @@ package config_test
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -21,33 +22,10 @@ func writeConfig(t *testing.T, body string) string {
 	return path
 }
 
-func TestLoadFromMissingFile(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "does-not-exist.toml")
+// assertDefaults checks every key of cfg holds its default.
+func assertDefaults(t *testing.T, cfg config.Config) {
+	t.Helper()
 
-	_, err := config.LoadFrom(path)
-	if err == nil {
-		t.Fatal("LoadFrom missing file: got nil error, want error")
-	}
-	if !strings.Contains(err.Error(), path) {
-		t.Errorf("error = %q, want it to name the path %q", err.Error(), path)
-	}
-	if !strings.Contains(err.Error(), `root = "~/Developer"`) {
-		t.Errorf("error = %q, want it to include the example config", err.Error())
-	}
-}
-
-func TestLoadFromMinimalAppliesDefaults(t *testing.T) {
-	root := t.TempDir()
-	path := writeConfig(t, `root = "`+root+`"`+"\n")
-
-	cfg, err := config.LoadFrom(path)
-	if err != nil {
-		t.Fatalf("LoadFrom: %v", err)
-	}
-
-	if cfg.Root != root {
-		t.Errorf("Root = %q, want %q", cfg.Root, root)
-	}
 	if len(cfg.Exclude) != 0 {
 		t.Errorf("Exclude = %v, want empty", cfg.Exclude)
 	}
@@ -60,15 +38,29 @@ func TestLoadFromMinimalAppliesDefaults(t *testing.T) {
 	if cfg.Keys.Vim {
 		t.Errorf("Keys.Vim = true, want false")
 	}
-	if cfg.Picker.Layout != "grouped" {
-		t.Errorf("Picker.Layout = %q, want %q", cfg.Picker.Layout, "grouped")
+	if cfg.Picker.Layout != "list" {
+		t.Errorf("Picker.Layout = %q, want %q", cfg.Picker.Layout, "list")
 	}
 }
 
+func TestLoadFromMissingFileIsDefaults(t *testing.T) {
+	cfg, err := config.LoadFrom(filepath.Join(t.TempDir(), "does-not-exist.toml"))
+	if err != nil {
+		t.Fatalf("LoadFrom missing file: %v", err)
+	}
+	assertDefaults(t, cfg)
+}
+
+func TestLoadFromEmptyFileIsDefaults(t *testing.T) {
+	cfg, err := config.LoadFrom(writeConfig(t, ""))
+	if err != nil {
+		t.Fatalf("LoadFrom: %v", err)
+	}
+	assertDefaults(t, cfg)
+}
+
 func TestLoadFromEachKey(t *testing.T) {
-	root := t.TempDir()
-	body := `root = "` + root + `"
-exclude = ["archive", "tools/scratch", "*/node_modules"]
+	body := `exclude = ["archive", "/srv/scratch", "node_*"]
 include_hidden = true
 [history]
 max_visits = 42
@@ -77,24 +69,13 @@ vim = true
 [picker]
 layout = "list"
 `
-	path := writeConfig(t, body)
-
-	cfg, err := config.LoadFrom(path)
+	cfg, err := config.LoadFrom(writeConfig(t, body))
 	if err != nil {
 		t.Fatalf("LoadFrom: %v", err)
 	}
 
-	if cfg.Root != root {
-		t.Errorf("Root = %q, want %q", cfg.Root, root)
-	}
-	wantExclude := []string{"archive", "tools/scratch", "*/node_modules"}
-	if len(cfg.Exclude) != len(wantExclude) {
-		t.Fatalf("Exclude = %v, want %v", cfg.Exclude, wantExclude)
-	}
-	for i, want := range wantExclude {
-		if cfg.Exclude[i] != want {
-			t.Errorf("Exclude[%d] = %q, want %q", i, cfg.Exclude[i], want)
-		}
+	if want := []string{"archive", "/srv/scratch", "node_*"}; !slices.Equal(cfg.Exclude, want) {
+		t.Errorf("Exclude = %v, want %v", cfg.Exclude, want)
 	}
 	if !cfg.IncludeHidden {
 		t.Errorf("IncludeHidden = false, want true")
@@ -110,33 +91,34 @@ layout = "list"
 	}
 }
 
-func TestLoadFromTildeExpansion(t *testing.T) {
+func TestLoadFromExcludeTildeExpansion(t *testing.T) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		t.Fatalf("os.UserHomeDir: %v", err)
 	}
 
-	// Expand against "~" itself (the home directory), which always
-	// exists, rather than fabricating a subdirectory under the real home.
-	path := writeConfig(t, `root = "~"`+"\n")
-
-	cfg, err2 := config.LoadFrom(path)
-	if err2 != nil {
-		t.Fatalf("LoadFrom: %v", err2)
+	cfg, err := config.LoadFrom(writeConfig(t, `exclude = ["~/go/pkg/*", "~", "$HOME/x", "node_modules"]`+"\n"))
+	if err != nil {
+		t.Fatalf("LoadFrom: %v", err)
 	}
-	if cfg.Root != home {
-		t.Errorf("Root = %q, want %q", cfg.Root, home)
+	want := []string{filepath.Join(home, "go", "pkg", "*"), home, "$HOME/x", "node_modules"}
+	if !slices.Equal(cfg.Exclude, want) {
+		t.Errorf("Exclude = %v, want %v", cfg.Exclude, want)
+	}
+}
+
+func TestLoadFromInvalidExcludePatternRejected(t *testing.T) {
+	_, err := config.LoadFrom(writeConfig(t, `exclude = ["["]`+"\n"))
+	if err == nil {
+		t.Fatal("LoadFrom invalid exclude pattern: got nil error, want error")
+	}
+	if !strings.Contains(err.Error(), "exclude") {
+		t.Errorf("error = %q, want it to name exclude", err.Error())
 	}
 }
 
 func TestLoadFromUnknownKeyRejected(t *testing.T) {
-	root := t.TempDir()
-	body := `root = "` + root + `"
-bogus = true
-`
-	path := writeConfig(t, body)
-
-	_, err := config.LoadFrom(path)
+	_, err := config.LoadFrom(writeConfig(t, "bogus = true\n"))
 	if err == nil {
 		t.Fatal("LoadFrom unknown key: got nil error, want error")
 	}
@@ -145,15 +127,20 @@ bogus = true
 	}
 }
 
-func TestLoadFromMaxVisitsZeroRejected(t *testing.T) {
-	root := t.TempDir()
-	body := `root = "` + root + `"
-[history]
-max_visits = 0
-`
-	path := writeConfig(t, body)
+func TestLoadFromRemovedRootExplained(t *testing.T) {
+	_, err := config.LoadFrom(writeConfig(t, `root = "~/Developer"`+"\n"))
+	if err == nil {
+		t.Fatal("LoadFrom root: got nil error, want error")
+	}
+	for _, want := range []string{"root", "removed", "cdd scan", "line 1"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error = %q, want it to contain %q", err.Error(), want)
+		}
+	}
+}
 
-	_, err := config.LoadFrom(path)
+func TestLoadFromMaxVisitsZeroRejected(t *testing.T) {
+	_, err := config.LoadFrom(writeConfig(t, "[history]\nmax_visits = 0\n"))
 	if err == nil {
 		t.Fatal("LoadFrom max_visits = 0: got nil error, want error")
 	}
@@ -163,65 +150,25 @@ max_visits = 0
 }
 
 func TestLoadFromUnknownPickerLayoutRejected(t *testing.T) {
-	root := t.TempDir()
-	body := `root = "` + root + `"
-[picker]
-layout = "fancy"
-`
-	path := writeConfig(t, body)
-
-	_, err := config.LoadFrom(path)
+	_, err := config.LoadFrom(writeConfig(t, "[picker]\nlayout = \"fancy\"\n"))
 	if err == nil {
 		t.Fatal(`LoadFrom layout = "fancy": got nil error, want error`)
 	}
-	for _, want := range []string{"picker.layout", "fancy", "grouped", "list"} {
+	for _, want := range []string{"picker.layout", "fancy", `"list"`} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error = %q, want it to contain %q", err.Error(), want)
 		}
 	}
 }
 
-func TestLoadFromRootNotDirectoryRejected(t *testing.T) {
-	file, err := os.CreateTemp(t.TempDir(), "root-*")
-	if err != nil {
-		t.Fatalf("os.CreateTemp: %v", err)
-	}
-	if err := file.Close(); err != nil {
-		t.Fatalf("close temp file: %v", err)
-	}
-
-	body := `root = "` + file.Name() + `"` + "\n"
-	path := writeConfig(t, body)
-
-	_, err = config.LoadFrom(path)
+func TestLoadFromGroupedLayoutExplained(t *testing.T) {
+	_, err := config.LoadFrom(writeConfig(t, "[picker]\nlayout = \"grouped\"\n"))
 	if err == nil {
-		t.Fatal("LoadFrom root not a directory: got nil error, want error")
+		t.Fatal(`LoadFrom layout = "grouped": got nil error, want error`)
 	}
-	if !strings.Contains(err.Error(), "not a directory") {
-		t.Errorf("error = %q, want it to say root is not a directory", err.Error())
-	}
-}
-
-func TestLoadFromRootMissing(t *testing.T) {
-	path := writeConfig(t, `include_hidden = true`+"\n")
-
-	_, err := config.LoadFrom(path)
-	if err == nil {
-		t.Fatal("LoadFrom missing root: got nil error, want error")
-	}
-	if !strings.Contains(err.Error(), "root") {
-		t.Errorf("error = %q, want it to mention root", err.Error())
-	}
-	if !strings.Contains(err.Error(), `root = "~/Developer"`) {
-		t.Errorf("error = %q, want it to include the example config", err.Error())
-	}
-}
-
-func TestExampleConfig(t *testing.T) {
-	got := config.ExampleConfig()
-	for _, want := range []string{"root =", "exclude =", "include_hidden =", "[history]", "max_visits =", "[keys]", "vim =", "[picker]", "layout ="} {
-		if !strings.Contains(got, want) {
-			t.Errorf("ExampleConfig() = %q, want it to contain %q", got, want)
+	for _, want := range []string{"picker.layout", "grouped", "removed", `"list"`} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error = %q, want it to contain %q", err.Error(), want)
 		}
 	}
 }
