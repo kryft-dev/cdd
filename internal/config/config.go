@@ -1,6 +1,6 @@
-// Package config loads cdd's configuration: the Root to search for Kinds
-// and Projects, Exclude globs, hidden-directory handling, and the History
-// and Picker settings.
+// Package config loads cdd's configuration: the Exclude globs and
+// hidden-directory handling a Scan walks with, and the History and Picker
+// settings. Every key is optional, and so is the file itself.
 package config
 
 import (
@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	toml "github.com/pelletier/go-toml/v2"
@@ -16,17 +17,15 @@ import (
 
 // Config is cdd's configuration, decoded from config.toml.
 type Config struct {
-	// Root is the top-level directory whose Kinds are searched for
-	// Projects. Required; a leading "~" is expanded to the user's home
-	// directory, but "$VAR" is left as-is.
-	Root string `toml:"root"`
-
-	// Exclude holds paths relative to Root, matched with path.Match
-	// semantics, that are skipped when discovering Kinds and Projects.
+	// Exclude holds filepath.Match patterns for directories a Scan skips,
+	// with everything below them: a pattern containing "/" is matched
+	// against a directory's absolute path, any other against its name
+	// alone. A leading "~" is expanded to the user's home directory, but
+	// "$VAR" is left as-is.
 	Exclude []string `toml:"exclude"`
 
-	// IncludeHidden, when false (the default), excludes hidden
-	// directories at both Kind and Project level.
+	// IncludeHidden, when false (the default), makes a Scan skip hidden
+	// directories.
 	IncludeHidden bool `toml:"include_hidden"`
 
 	// History configures the ordered record of Visits.
@@ -56,17 +55,27 @@ type Keys struct {
 
 // Picker configures the Picker's appearance.
 type Picker struct {
-	// Layout selects which layout the Picker draws: "grouped" (the
-	// default) groups rows under Kind headers with a caret on the
-	// selected row; "list" is a flat fzf-style list with the filter
-	// prompt below it and a background-highlighted selected row. Both
-	// draw the same preview pane.
+	// Layout selects which layout the Picker draws. "list", the default
+	// and only layout today, is a flat fzf-style list with the filter
+	// prompt below it and a background-highlighted selected row.
 	Layout string `toml:"layout"`
 }
 
 // pickerLayouts are the values Picker.Layout accepts, in the order the
 // error message lists them.
-var pickerLayouts = []string{"grouped", "list"}
+var pickerLayouts = []string{"list"}
+
+// removedKeys maps each key cdd once accepted to why it is gone, so an old
+// config.toml fails with the reason rather than a bare "unknown key".
+var removedKeys = map[string]string{
+	"root": "root was removed in v0.3.0: cdd now finds git repositories with cdd scan [dir...], so delete this line",
+}
+
+// removedLayouts maps each picker.layout value cdd once accepted to why it
+// is gone.
+var removedLayouts = map[string]string{
+	"grouped": `the grouped layout was removed in v0.3.0 along with Kinds; use "list"`,
+}
 
 // defaultConfig returns a Config with every default applied, before a
 // config.toml's fields are decoded on top of it.
@@ -76,27 +85,8 @@ func defaultConfig() Config {
 		IncludeHidden: false,
 		History:       History{MaxVisits: 1000},
 		Keys:          Keys{Vim: false},
-		Picker:        Picker{Layout: "grouped"},
+		Picker:        Picker{Layout: "list"},
 	}
-}
-
-// exampleConfigBody is the example config.toml shown in errors and printed
-// by ExampleConfig.
-const exampleConfigBody = `root = "~/Developer"      # required, no default
-exclude = []              # paths relative to Root, glob-matched
-include_hidden = false
-[history]
-max_visits = 1000         # must be >= 1
-[keys]
-vim = false
-[picker]
-layout = "grouped"        # or "list" for the flat fzf-style layout
-`
-
-// ExampleConfig returns an example config.toml, for the cli package to print
-// when Load or LoadFrom fails.
-func ExampleConfig() string {
-	return exampleConfigBody
 }
 
 // Load reads cdd's configuration from $XDG_CONFIG_HOME/cdd/config.toml,
@@ -113,18 +103,19 @@ func Load() (Config, error) {
 	return LoadFrom(filepath.Join(dir, "cdd", "config.toml"))
 }
 
-// LoadFrom reads cdd's configuration from path. It is exported separately
-// from Load so tests can point it at a fixture file.
+// LoadFrom reads cdd's configuration from path. A missing file is every
+// default. It is exported separately from Load so tests can point it at a
+// fixture file.
 func LoadFrom(path string) (Config, error) {
+	cfg := defaultConfig()
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return Config{}, fmt.Errorf("config: %s not found\n\nExample config.toml:\n\n%s", path, exampleConfigBody)
+			return cfg, nil
 		}
 		return Config{}, fmt.Errorf("config: read %s: %w", path, err)
 	}
 
-	cfg := defaultConfig()
 	dec := toml.NewDecoder(strings.NewReader(string(data)))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&cfg); err != nil {
@@ -140,14 +131,20 @@ func LoadFrom(path string) (Config, error) {
 
 // describeDecodeError rewrites a toml decode error so it names the
 // offending key and line. For an unknown-key error (StrictMissingError) it
-// reports each missing field's key and position; other decode errors
-// (wrong types) already carry a key and position via DecodeError.String.
+// reports each missing field's key and position, and why a removed key is
+// gone; other decode errors (wrong types) already carry a key and position
+// via DecodeError.String.
 func describeDecodeError(err error) error {
 	var strict *toml.StrictMissingError
 	if errors.As(err, &strict) {
 		msgs := make([]string, len(strict.Errors))
 		for i, e := range strict.Errors {
 			row, col := e.Position()
+			key := strings.Join(e.Key(), ".")
+			if why, ok := removedKeys[key]; ok {
+				msgs[i] = fmt.Sprintf("line %d column %d: %s", row, col, why)
+				continue
+			}
 			msgs[i] = fmt.Sprintf("unknown key %q at line %d column %d", e.Key(), row, col)
 		}
 		return errors.New(strings.Join(msgs, "; "))
@@ -163,37 +160,34 @@ func describeDecodeError(err error) error {
 }
 
 // validate checks the decoded Config against the rules Load and LoadFrom
-// enforce: Root is required, expanded, and must be an existing directory;
-// History.MaxVisits must be at least 1; Picker.Layout must name a known
-// layout.
+// enforce, expanding "~" in each Exclude pattern on the way: every Exclude
+// pattern must be well formed; History.MaxVisits must be at least 1;
+// Picker.Layout must name a known layout.
 func (c *Config) validate(path string) error {
-	if c.Root == "" {
-		return fmt.Errorf("config: %s: root is required\n\nExample config.toml:\n\n%s", path, exampleConfigBody)
-	}
-
-	root, err := expandHome(c.Root)
-	if err != nil {
-		return fmt.Errorf("config: %s: expand root %q: %w", path, c.Root, err)
-	}
-	c.Root = root
-
-	info, err := os.Stat(c.Root)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("config: %s: root %q does not exist", path, c.Root)
+	for i, p := range c.Exclude {
+		expanded, err := expandHome(p)
+		if err != nil {
+			return fmt.Errorf("config: %s: expand exclude pattern %q: %w", path, p, err)
 		}
-		return fmt.Errorf("config: %s: root %q: %w", path, c.Root, err)
-	}
-	if !info.IsDir() {
-		return fmt.Errorf("config: %s: root %q is not a directory", path, c.Root)
+		if _, err := filepath.Match(expanded, ""); err != nil {
+			return fmt.Errorf("config: %s: invalid exclude pattern %q: %w", path, p, err)
+		}
+		c.Exclude[i] = expanded
 	}
 
 	if c.History.MaxVisits < 1 {
 		return fmt.Errorf("config: %s: history.max_visits must be >= 1, got %d", path, c.History.MaxVisits)
 	}
 
+	if why, ok := removedLayouts[c.Picker.Layout]; ok {
+		return fmt.Errorf("config: %s: picker.layout: %s", path, why)
+	}
 	if !slices.Contains(pickerLayouts, c.Picker.Layout) {
-		return fmt.Errorf("config: %s: picker.layout must be %s, got %q", path, strings.Join(pickerLayouts, " or "), c.Picker.Layout)
+		quoted := make([]string, len(pickerLayouts))
+		for i, l := range pickerLayouts {
+			quoted[i] = strconv.Quote(l)
+		}
+		return fmt.Errorf("config: %s: picker.layout must be %s, got %q", path, strings.Join(quoted, " or "), c.Picker.Layout)
 	}
 
 	return nil
