@@ -11,9 +11,9 @@ import (
 	"github.com/kryft-dev/cdd/internal/git"
 )
 
-// View renders the current frame in the Model's layout: the grouped
-// layout by default, the flat fzf-style one when Options.Layout selected
-// it. Both share the sizing, the preview pane and the footer.
+// View renders the current frame in the Model's layout. The layout's own
+// frame draws the list; the preview pane and footer here are shared by any
+// layout.
 func (m Model) View() tea.View {
 	if m.quitting {
 		return tea.NewView("")
@@ -31,40 +31,7 @@ func (m Model) View() tea.View {
 
 	t := newTheme(m.dark)
 	now := time.Now()
-	if m.layout == LayoutList {
-		return fullScreen(m.listFrame(t, now))
-	}
-	return fullScreen(m.groupedFrame(t, now))
-}
-
-// groupedFrame renders the default layout: the filter line, the list
-// grouped under Kind headers (with a preview pane beside it when there is
-// room), and the footer.
-func (m Model) groupedFrame(t theme, now time.Time) string {
-	groups := m.visibleGroups()
-	rows := flatten(groups)
-	width, height := m.frameSize()
-	lay := m.computeLayout(rows, now, width, height)
-
-	var b strings.Builder
-	b.WriteString(m.filterLine(t))
-	b.WriteString("\n")
-
-	list := m.groupedBody(t, groups, rows, lay, now)
-	if lay.ShowPreview {
-		// The preview box is exactly ListHeight lines tall (lipgloss v2
-		// counts the border in Height), so joining it at the top keeps
-		// the frame at the terminal height: one taller and the renderer
-		// drops the filter line and repaints every tick.
-		b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, list, " ", m.previewView(t, rows, lay, now)))
-	} else {
-		b.WriteString(list)
-	}
-
-	b.WriteString("\n")
-	b.WriteString(m.footerView(t, width, len(rows), lay))
-
-	return b.String()
+	return fullScreen(m.listFrame(t, now))
 }
 
 // fullScreen wraps content in a View drawn on the alternate screen. The
@@ -92,61 +59,6 @@ func (m Model) filterLine(t theme) string {
 		return prompt + t.muted_().Render("type to filter")
 	}
 	return prompt + m.query
-}
-
-// groupedBody renders the grouped list body: a header line per Kind, then
-// its rows, with the cursor's row carrying the caret and accent name. The
-// body is windowed to exactly Layout.ListHeight lines, scrolled so the
-// cursor's line (counting Kind header lines) stays on screen.
-func (m Model) groupedBody(t theme, groups []kindGroup, rows []match, lay Layout, now time.Time) string {
-	var lines []string
-	i := 0
-	cursorLine := 0
-	for _, g := range groups {
-		rule := t.rule_(max(lay.ListWidth-len([]rune(g.kind))-1, 0))
-		lines = append(lines, t.accentBold().Render(g.kind)+" "+rule)
-		for _, mt := range g.matches {
-			if i == m.cursor {
-				cursorLine = len(lines)
-			}
-			lines = append(lines, m.rowView(t, mt, i == m.cursor, lay, now))
-			i++
-		}
-	}
-	if len(rows) == 0 {
-		lines = append(lines, t.muted_().Render("no projects match"))
-	}
-
-	return window(lines, cursorLine, lay.ListHeight)
-}
-
-// rowView renders one Project row: NAME  STATUS  LAST VISIT, with a caret
-// and accent name when selected.
-func (m Model) rowView(t theme, mt match, selected bool, lay Layout, now time.Time) string {
-	caret := "   "
-	nameStyle := lipgloss.NewStyle().Bold(true)
-	if selected {
-		caret = t.fg(t.accent).Bold(true).Render(" › ")
-		nameStyle = nameStyle.Foreground(t.accent)
-	}
-
-	name := mt.row.Project.Name
-	if len([]rune(name)) > lay.NameWidth {
-		name = truncateName(name, lay.NameWidth)
-	}
-	offset := len([]rune(mt.row.Project.Path)) - len([]rune(mt.row.Project.Name))
-	name = padRightOn(plainStyle, highlightMatches(name, mt.matches, offset, nameStyle, t), lay.NameWidth)
-
-	st, loaded := m.statuses[mt.row.Project.Path]
-	status := padRightOn(plainStyle, t.statusCluster(st, loaded), lay.StatusWidth)
-
-	rel := RelativeTime(mt.row.LastVisit, now)
-	if lay.ShortTime {
-		rel = RelativeTimeShort(mt.row.LastVisit, now)
-	}
-	rel = padLeftOn(plainStyle, t.muted_().Render(rel), lay.TimeWidth)
-
-	return caret + name + "  " + status + "  " + rel
 }
 
 // previewView renders the right-hand preview box for the selected row.

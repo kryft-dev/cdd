@@ -12,10 +12,10 @@ import (
 	"github.com/kryft-dev/cdd/internal/picker"
 )
 
-// bothLayouts is every layout the Picker can draw, for the behaviour the
-// two share: the frame's height, the alternate screen, equal-width rows
+// allLayouts is every layout the Picker can draw, for the behaviour each
+// must share: the frame's height, the alternate screen, equal-width rows
 // and windowing the body to the terminal.
-var bothLayouts = []picker.LayoutStyle{picker.LayoutGrouped, picker.LayoutList}
+var allLayouts = []picker.LayoutStyle{picker.LayoutList}
 
 // sizedModel builds a Model in the given layout, sends it one
 // tea.WindowSizeMsg and reports the terminal's background as dark: a sized
@@ -36,7 +36,7 @@ var ansi = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 // plain is s with its styling escapes removed, as the terminal shows it.
 func plain(s string) string { return ansi.ReplaceAllString(s, "") }
 
-// manyRows builds n rows all under the same Kind, so the list body is long
+// manyRows builds n rows all in the same Kind, so the list body is long
 // enough to need scrolling at a modest terminal height.
 func manyRows(n int) []picker.Row {
 	rows := make([]picker.Row, n)
@@ -51,44 +51,20 @@ func manyRows(n int) []picker.Row {
 	return rows
 }
 
-// TestModel_View_PreviewUnderFilterLine verifies that the preview box does
-// not land on the same row as the filter line: the first rendered line
-// must be the filter prompt, with no preview box border on it.
-func TestModel_View_PreviewUnderFilterLine(t *testing.T) {
-	rows := []picker.Row{
-		{Project: picker.Project{Kind: "work", Name: "alpha", Path: "/root/work/alpha"}},
-	}
-	m := sizedModel(rows, picker.LayoutGrouped, 120, 40)
-
-	out := m.View().Content
-	lines := strings.Split(out, "\n")
-	if len(lines) == 0 {
-		t.Fatalf("View() produced no lines")
-	}
-	first := lines[0]
-	if !strings.Contains(first, "type to filter") {
-		t.Errorf("first line = %q, want it to contain the filter prompt", first)
-	}
-	if strings.ContainsAny(first, "╭╮╰╯│─") {
-		t.Errorf("first line = %q, should not contain any preview box border", first)
-	}
-}
-
 // TestModel_View_ListWindowedToHeight verifies that a list far taller than
 // the terminal is clipped to Layout.ListHeight rows rather than pushing the
 // footer off screen, and that scrolling the cursor to the last row keeps it
 // on screen.
 func TestModel_View_ListWindowedToHeight(t *testing.T) {
 	rows := manyRows(40)
-	m := sizedModel(rows, picker.LayoutGrouped, 120, 20)
+	m := sizedModel(rows, picker.LayoutList, 120, 20)
 
 	lay := picker.ComputeLayout(10, 1, make([]time.Time, len(rows)), time.Now(), 120, 20)
 
 	out := m.View().Content
 	lines := strings.Split(out, "\n")
 
-	// Without windowing, every one of the 40 rows plus its Kind header
-	// would be drawn, pushing the total well past Height; with windowing
+	// Without windowing, every one of the 40 rows would be drawn, pushing the total well past Height; with windowing
 	// the whole frame stays close to the terminal height.
 	if len(lines) > lay.ListHeight+6 {
 		t.Errorf("View() produced %d lines at Height 20 (ListHeight=%d); footer likely pushed off screen:\n%s", len(lines), lay.ListHeight, out)
@@ -118,24 +94,20 @@ func TestModel_View_ListWindowedToHeight(t *testing.T) {
 }
 
 // TestModel_View_RowsShareEqualWidth verifies that every list row renders
-// to the same display width, selected or not: the grouped layout keeps a
-// fixed-width caret gutter on every row rather than a caret that shrinks
-// the selected row by a column, and the list layout pads every row out so
-// the selected row's background spans the pane.
+// to the same display width, selected or not: the list layout pads every
+// row out so the selected row's background spans the pane.
 func TestModel_View_RowsShareEqualWidth(t *testing.T) {
 	rows := []picker.Row{
 		{Project: picker.Project{Kind: "work", Name: "alpha", Path: "/root/work/alpha"}},
 		{Project: picker.Project{Kind: "work", Name: "beta", Path: "/root/work/beta"}},
 		{Project: picker.Project{Kind: "work", Name: "gamma", Path: "/root/work/gamma"}},
 	}
-	// The list layout prefixes "kind/"; the grouped layout puts the Kind
-	// in a header instead, so each looks for its own row text.
+	// Each layout looks for its own row text.
 	label := map[picker.LayoutStyle]func(picker.Row) string{
-		picker.LayoutGrouped: func(r picker.Row) string { return r.Project.Name },
-		picker.LayoutList:    func(r picker.Row) string { return r.Project.Kind + "/" + r.Project.Name },
+		picker.LayoutList: func(r picker.Row) string { return r.Project.Kind + "/" + r.Project.Name },
 	}
 
-	for _, layout := range bothLayouts {
+	for _, layout := range allLayouts {
 		t.Run(string(layout), func(t *testing.T) {
 			// A narrow terminal keeps the preview pane from being drawn,
 			// so each Project name appears exactly once, in its list row.
@@ -162,11 +134,11 @@ func TestModel_View_RowsShareEqualWidth(t *testing.T) {
 }
 
 // TestModel_View_FrameMatchesTerminalHeight pins the frame to exactly the
-// terminal height in both layouts, with and without the preview pane. One
+// terminal height in every layout, with and without the preview pane. One
 // line taller and Bubble Tea's renderer drops a line off the top.
 func TestModel_View_FrameMatchesTerminalHeight(t *testing.T) {
 	rows := manyRows(11)
-	for _, layout := range bothLayouts {
+	for _, layout := range allLayouts {
 		t.Run(string(layout), func(t *testing.T) {
 			for _, width := range []int{110, 45} {
 				for _, height := range []int{40, 30, 24, 14, 9} {
@@ -182,18 +154,17 @@ func TestModel_View_FrameMatchesTerminalHeight(t *testing.T) {
 }
 
 // TestModel_View_FilterLineSitsWhereTheLayoutPutsIt pins the filter line
-// to the top of the grouped frame and to the line directly below the list
-// body in the list layout, where fzf users expect the prompt.
+// to where each layout puts it: directly below the list body in the list
+// layout, where fzf users expect the prompt.
 func TestModel_View_FilterLineSitsWhereTheLayoutPutsIt(t *testing.T) {
 	rows := manyRows(11)
 	const width, height = 110, 24
 	lay := picker.ComputeLayout(20, 1, make([]time.Time, len(rows)), time.Now(), width, height)
 
 	promptLine := map[picker.LayoutStyle]int{
-		picker.LayoutGrouped: 0,
-		picker.LayoutList:    lay.ListHeight,
+		picker.LayoutList: lay.ListHeight,
 	}
-	for _, layout := range bothLayouts {
+	for _, layout := range allLayouts {
 		t.Run(string(layout), func(t *testing.T) {
 			m := sizedModel(rows, layout, width, height)
 			lines := strings.Split(plain(m.View().Content), "\n")
@@ -210,10 +181,10 @@ func TestModel_View_FilterLineSitsWhereTheLayoutPutsIt(t *testing.T) {
 	}
 }
 
-// TestModel_View_UsesAlternateScreen pins both layouts to the alternate
+// TestModel_View_UsesAlternateScreen pins every layout to the alternate
 // screen so nothing is left above the shell prompt after a Jump or cancel.
 func TestModel_View_UsesAlternateScreen(t *testing.T) {
-	for _, layout := range bothLayouts {
+	for _, layout := range allLayouts {
 		t.Run(string(layout), func(t *testing.T) {
 			if m := sizedModel(manyRows(3), layout, 100, 30); !m.View().AltScreen {
 				t.Errorf("View().AltScreen = false, want true")

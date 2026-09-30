@@ -18,19 +18,19 @@ func listModel(rows []picker.Row, width, height int) picker.Model {
 // selBarGlyph is the bar the list layout draws on the selected row.
 const selBarGlyph = "▌"
 
-// TestOptions_LayoutDefaultsToGrouped pins the zero Options to the grouped
-// layout, so a caller that says nothing keeps the accepted look.
-func TestOptions_LayoutDefaultsToGrouped(t *testing.T) {
+// TestOptions_LayoutDefaultsToList pins the zero Options to the list
+// layout, so a caller that says nothing gets the only layout there is.
+func TestOptions_LayoutDefaultsToList(t *testing.T) {
 	m := sizedModel(rowsForKindOrder(), "", 120, 24)
 	lines := strings.Split(plain(m.View().Content), "\n")
-	if !strings.Contains(lines[0], "type to filter") {
-		t.Errorf("first line = %q, want the grouped layout's filter line on top", lines[0])
+	if !strings.Contains(lines[0], "tools/cdd") {
+		t.Errorf("first line = %q, want the list layout's first row on top", lines[0])
 	}
 }
 
 // TestModel_ListLayout_FlatHistoryOrder verifies that the list layout walks
-// rows in the order they were given (History order, never-visited last)
-// rather than regrouping them under their Kinds.
+// rows in the order they were given (History order) rather than regrouping
+// them by Kind.
 func TestModel_ListLayout_FlatHistoryOrder(t *testing.T) {
 	m := picker.NewModel(rowsForKindOrder(), fakeStatus, picker.Options{Layout: picker.LayoutList})
 
