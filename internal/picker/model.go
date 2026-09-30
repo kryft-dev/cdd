@@ -21,7 +21,7 @@ const (
 )
 
 // match is one row along with where, if anywhere, the current query matched
-// its Project's path, for highlighting.
+// its Project's shown path (Dir then Name), for highlighting.
 type match struct {
 	row     Row
 	matches []int // rune indexes into the matched string, for highlighting
@@ -148,7 +148,7 @@ func (m Model) visibleMatches() []match {
 
 	paths := make([]string, len(m.rows))
 	for i, r := range m.rows {
-		paths[i] = r.Project.Path
+		paths[i] = r.Project.Dir + r.Project.Name
 	}
 	results := fuzzy.Find(m.query, paths)
 

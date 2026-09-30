@@ -128,12 +128,12 @@ func (m Model) frameSize() (width, height int) {
 }
 
 // computeLayout sizes one frame from the rows it has to show. The name
-// column holds "kind/name".
+// column holds the Project's parent directory and name.
 func (m Model) computeLayout(rows []match, now time.Time, width, height int) Layout {
 	longestName, widestStatus := 0, 1
 	times := make([]time.Time, 0, len(rows))
 	for _, mt := range rows {
-		n := len([]rune(mt.row.Project.Kind)) + 1 + len([]rune(mt.row.Project.Name)) // "kind/name"
+		n := len([]rune(mt.row.Project.Dir)) + len([]rune(mt.row.Project.Name))
 		if n > longestName {
 			longestName = n
 		}
@@ -181,6 +181,20 @@ func widestTime(times []time.Time, now time.Time, short bool) int {
 		}
 	}
 	return w
+}
+
+// truncateLeft shortens s to width columns by dropping runes from its
+// start behind a leading "…", keeping the end, which says the most about a
+// path.
+func truncateLeft(s string, width int) string {
+	r := []rune(s)
+	if len(r) <= width {
+		return s
+	}
+	if width <= 1 {
+		return string(r[len(r)-max(width, 0):])
+	}
+	return "…" + string(r[len(r)-width+1:])
 }
 
 // truncateName shortens name to width columns, ending in "…" when it does

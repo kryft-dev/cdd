@@ -69,7 +69,7 @@ func (m Model) previewView(t theme, rows []match, lay Layout, now time.Time) str
 		st, loaded := m.statuses[p.Path]
 
 		label := func(s string) string { return t.muted_().Render(padRightOn(plainStyle, s, 11)) }
-		body.WriteString(t.muted_().Render(p.Kind+"/") + t.accentBold().Render(p.Name) + "\n\n")
+		body.WriteString(t.muted_().Render(p.Dir) + t.accentBold().Render(p.Name) + "\n\n")
 		body.WriteString(label("path") + p.Path + "\n")
 		if loaded && st.Kind == git.Found {
 			body.WriteString(label("branch") + st.Branch + "\n")

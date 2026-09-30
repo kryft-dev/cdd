@@ -51,7 +51,7 @@ func (m Model) listBody(t theme, rows []match, lay Layout, now time.Time) string
 	return window(lines, m.cursor, lay.ListHeight)
 }
 
-// listRowView renders one row as "▌ STATUS kind/NAME   LAST VISIT", padded
+// listRowView renders one row as "▌ STATUS ~/dir/NAME   LAST VISIT", padded
 // out to Layout.ListWidth. Every segment, padding included, is rendered
 // through base, so the selected row's background highlight runs unbroken
 // to the edge of the pane.
@@ -64,11 +64,11 @@ func (m Model) listRowView(t theme, mt match, selected bool, lay Layout, now tim
 		nameStyle = base.Foreground(t.selFg).Bold(true)
 		bar = base.Foreground(t.blue).Render(selBar)
 	}
-	kindStyle := base.Foreground(t.muted)
+	dirStyle := base.Foreground(t.muted)
 
 	st, loaded := m.statuses[mt.row.Project.Path]
 	status := padRightOn(base, t.statusClusterOn(base, st, loaded), lay.StatusWidth)
-	name := m.listNameField(t, mt, lay, base, kindStyle, nameStyle)
+	name := m.listNameField(t, mt, lay, base, dirStyle, nameStyle)
 
 	rel := RelativeTime(mt.row.LastVisit, now)
 	if lay.ShortTime {
@@ -82,34 +82,34 @@ func (m Model) listRowView(t theme, mt match, selected bool, lay Layout, now tim
 }
 
 // listNameFloor is the least room the Project name keeps in the name
-// column. A Kind long enough to crowd it out is truncated instead: the
-// name is what the user is reading for.
+// column. A parent directory long enough to crowd it out is truncated
+// instead: the name is what the user is reading for.
 const listNameFloor = 4
 
-// listNameField renders "kind/name" padded to Layout.NameWidth, with the
-// Kind muted ahead of the Project name and any fuzzy-match runes
-// highlighted. The Project name is truncated first when the pair is too
-// wide, and the Kind once the name is down to listNameFloor. Each segment
-// keeps its own style, so a long Kind never mutes the name with it.
-func (m Model) listNameField(t theme, mt match, lay Layout, base, kindStyle, nameStyle lipgloss.Style) string {
+// listNameField renders the Project's parent directory and name padded to
+// Layout.NameWidth, the directory muted ahead of the name and any
+// fuzzy-match runes highlighted. The name is truncated first when the pair
+// is too wide, and the directory, from its start, once the name is down to
+// listNameFloor. Each segment keeps its own style, so a long directory
+// never mutes the name with it.
+func (m Model) listNameField(t theme, mt match, lay Layout, base, dirStyle, nameStyle lipgloss.Style) string {
 	p := mt.row.Project
-	kind := p.Kind + "/"
-	name := p.Name
+	dir, name := p.Dir, p.Name
 
-	// Matched indexes are rune offsets into the Project's path, of which
-	// "kind/name" is the tail; shift them onto each segment.
-	pathLen := len([]rune(p.Path))
-	kindOffset := pathLen - len([]rune(kind)) - len([]rune(name))
-	nameOffset := pathLen - len([]rune(name))
-
-	kindWidth := len([]rune(kind))
-	if over := kindWidth - (lay.NameWidth - listNameFloor); over > 0 {
-		kindWidth = max(kindWidth-over, 0)
-		kind = truncateName(kind, kindWidth)
+	// Matched indexes are rune offsets into Dir+Name; shift them onto each
+	// segment, and past whatever truncateLeft drops from the directory.
+	dirWidth := len([]rune(dir))
+	nameOffset := dirWidth
+	dirOffset := 0
+	if over := dirWidth - (lay.NameWidth - listNameFloor); over > 0 {
+		kept := max(dirWidth-over, 0)
+		dir = truncateLeft(dir, kept)
+		dirOffset = dirWidth - kept
+		dirWidth = kept
 	}
-	name = truncateName(name, max(lay.NameWidth-kindWidth, 0))
+	name = truncateName(name, max(lay.NameWidth-dirWidth, 0))
 
-	field := highlightMatches(kind, mt.matches, kindOffset, kindStyle, t) +
+	field := highlightMatches(dir, mt.matches, dirOffset, dirStyle, t) +
 		highlightMatches(name, mt.matches, nameOffset, nameStyle, t)
 	return padRightOn(base, field, lay.NameWidth)
 }

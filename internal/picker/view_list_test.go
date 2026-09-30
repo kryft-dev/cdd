@@ -1,6 +1,7 @@
 package picker_test
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
@@ -21,7 +22,7 @@ const selBarGlyph = "▌"
 // TestOptions_LayoutDefaultsToList pins the zero Options to the list
 // layout, so a caller that says nothing gets the only layout there is.
 func TestOptions_LayoutDefaultsToList(t *testing.T) {
-	m := sizedModel(rowsForKindOrder(), "", 120, 24)
+	m := sizedModel(historyRows(), "", 120, 24)
 	lines := strings.Split(plain(m.View().Content), "\n")
 	if !strings.Contains(lines[0], "tools/cdd") {
 		t.Errorf("first line = %q, want the list layout's first row on top", lines[0])
@@ -30,9 +31,9 @@ func TestOptions_LayoutDefaultsToList(t *testing.T) {
 
 // TestModel_ListLayout_FlatHistoryOrder verifies that the list layout walks
 // rows in the order they were given (History order) rather than regrouping
-// them by Kind.
+// them by parent directory.
 func TestModel_ListLayout_FlatHistoryOrder(t *testing.T) {
-	m := picker.NewModel(rowsForKindOrder(), fakeStatus, picker.Options{Layout: picker.LayoutList})
+	m := picker.NewModel(historyRows(), fakeStatus, picker.Options{Layout: picker.LayoutList})
 
 	want := []string{
 		"/root/tools/cdd",
@@ -49,10 +50,10 @@ func TestModel_ListLayout_FlatHistoryOrder(t *testing.T) {
 }
 
 // TestModel_ListLayout_StartsWithARowNotAHeader verifies that the frame
-// opens on the first Project row: no filter line above it and no Kind
-// header taking a line.
+// opens on the first Project row: no filter line above it and no header
+// taking a line.
 func TestModel_ListLayout_StartsWithARowNotAHeader(t *testing.T) {
-	m := listModel(rowsForKindOrder(), 120, 24)
+	m := listModel(historyRows(), 120, 24)
 	lines := strings.Split(plain(m.View().Content), "\n")
 
 	if !strings.Contains(lines[0], "tools/cdd") {
@@ -63,14 +64,15 @@ func TestModel_ListLayout_StartsWithARowNotAHeader(t *testing.T) {
 	}
 }
 
-// TestModel_ListLayout_KindPrefixAndPreview verifies a row shows "kind/"
-// before the Project name and that the shared preview pane is still drawn.
-func TestModel_ListLayout_KindPrefixAndPreview(t *testing.T) {
-	m := listModel(rowsForKindOrder(), 120, 24)
+// TestModel_ListLayout_DirPrefixAndPreview verifies a row shows its parent
+// directory before the Project name and that the shared preview pane is
+// still drawn.
+func TestModel_ListLayout_DirPrefixAndPreview(t *testing.T) {
+	m := listModel(historyRows(), 120, 24)
 	out := plain(m.View().Content)
 
-	if !strings.Contains(out, "work/api") {
-		t.Errorf("View() output is missing the %q row:\n%s", "work/api", out)
+	if !strings.Contains(out, "~/work/api") {
+		t.Errorf("View() output is missing the %q row:\n%s", "~/work/api", out)
 	}
 	if !strings.ContainsAny(out, "╭╮╰╯") {
 		t.Errorf("View() output is missing the preview box:\n%s", out)
@@ -80,7 +82,7 @@ func TestModel_ListLayout_KindPrefixAndPreview(t *testing.T) {
 // TestModel_ListLayout_SelectedRowCarriesBar verifies the selected row is
 // marked with the "▌" bar, and only the selected row.
 func TestModel_ListLayout_SelectedRowCarriesBar(t *testing.T) {
-	m := listModel(rowsForKindOrder(), 120, 24)
+	m := listModel(historyRows(), 120, 24)
 
 	if n := strings.Count(plain(m.View().Content), selBarGlyph); n != 1 {
 		t.Errorf("View() drew %d %q bars, want exactly 1 (the selected row)", n, selBarGlyph)
@@ -89,43 +91,76 @@ func TestModel_ListLayout_SelectedRowCarriesBar(t *testing.T) {
 	next, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 	m = next.(picker.Model)
 	for _, l := range strings.Split(plain(m.View().Content), "\n") {
-		if strings.Contains(l, selBarGlyph) && !strings.Contains(l, "work/api") {
+		if strings.Contains(l, selBarGlyph) && !strings.Contains(l, "~/work/api") {
 			t.Errorf("after one move down the bar is on %q, want it on the work/api row", l)
 		}
 	}
 }
 
-// TestModel_ListLayout_LongKindKeepsTheName verifies that a Kind too long
-// for the name column is the part that gives way: the Project name stays
-// on screen, and it keeps its own styling rather than being muted along
-// with the Kind.
-func TestModel_ListLayout_LongKindKeepsTheName(t *testing.T) {
+// TestModel_ListLayout_LongDirKeepsTheName verifies that a parent directory
+// too long for the name column is the part that gives way, from its start:
+// the Project name and the directory's end stay on screen, and the name
+// keeps its own styling rather than being muted along with the directory.
+func TestModel_ListLayout_LongDirKeepsTheName(t *testing.T) {
 	rows := []picker.Row{
 		{Project: picker.Project{
-			Kind: "infrastructure-platform",
+			Dir:  "~/work/infrastructure-platform/",
 			Name: "obs",
-			Path: "/root/infrastructure-platform/obs",
+			Path: "/root/work/infrastructure-platform/obs",
 		}},
 	}
-	m := listModel(rows, 34, 12) // narrow enough that "kind/" alone overruns
+	m := listModel(rows, 34, 12) // narrow enough that the directory alone overruns
 
 	lines := strings.Split(m.View().Content, "\n")
 	row := lines[0]
 	if !strings.Contains(plain(row), "obs") {
 		t.Fatalf("row = %q, want the Project name %q still drawn", plain(row), "obs")
 	}
+	if !strings.Contains(plain(row), "…") || !strings.Contains(plain(row), "platform/") || strings.Contains(plain(row), "~/work") {
+		t.Errorf("row = %q, want the directory's start dropped behind \"…\" and its end kept", plain(row))
+	}
 
-	// The Kind is muted and the selected row's name is not: the two
+	// The directory is muted and the selected row's name is not: the two
 	// segments must not share one styling run.
 	name := styleOf(row, "obs")
-	kind := styleOf(row, "infra")
+	dir := styleOf(row, "platform")
 	if name == "" {
 		t.Fatalf("row = %q, could not find a styling run around the name", row)
 	}
-	if name == kind {
-		t.Errorf("name and Kind share the styling run %q, want the Kind muted and the name not", name)
+	if name == dir {
+		t.Errorf("name and directory share the styling run %q, want the directory muted and the name not", name)
 	}
 }
+
+// TestModel_ListLayout_FilterMatchesDirAndHighlights verifies the filter
+// matches the parent directory as well as the name, and that the matched
+// runes of a truncated directory still land on the right characters.
+func TestModel_ListLayout_FilterMatchesDirAndHighlights(t *testing.T) {
+	rows := []picker.Row{
+		{Project: picker.Project{Dir: "~/work/infrastructure-platform/", Name: "obs", Path: "/w/i/obs"}},
+		{Project: picker.Project{Dir: "~/tools/", Name: "cdd", Path: "/t/cdd"}},
+	}
+	m := listModel(rows, 34, 12)
+	for _, r := range "platf" {
+		next, _ := m.Update(tea.KeyPressMsg{Text: string(r)})
+		m = next.(picker.Model)
+	}
+
+	row := strings.Split(m.View().Content, "\n")[0]
+	if !strings.Contains(plain(row), "obs") {
+		t.Fatalf("row = %q, want the obs row, matched by its directory", plain(row))
+	}
+	var highlighted strings.Builder
+	for _, sm := range underlined.FindAllStringSubmatch(row, -1) {
+		highlighted.WriteString(sm[1])
+	}
+	if got := highlighted.String(); got != "platf" {
+		t.Errorf("highlighted runes = %q, want %q", got, "platf")
+	}
+}
+
+// underlined matches one rune drawn in the underlined match style.
+var underlined = regexp.MustCompile(`\x1b\[1;4;[0-9;]*m([^\x1b])\x1b\[m`)
 
 // styleOf returns the SGR escape introducing the run of styled text that
 // contains want, or "" when want is not found in a styled run.
@@ -159,7 +194,7 @@ func TestModel_ListLayout_ScrollsCursorIntoView(t *testing.T) {
 // TestModel_ListLayout_NoMatches shows the shared empty-filter message
 // rather than an empty pane.
 func TestModel_ListLayout_NoMatches(t *testing.T) {
-	m := listModel(rowsForKindOrder(), 120, 24)
+	m := listModel(historyRows(), 120, 24)
 	for _, r := range "zzzzzz" {
 		next, _ := m.Update(tea.KeyPressMsg{Text: string(r)})
 		m = next.(picker.Model)

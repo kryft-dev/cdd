@@ -30,22 +30,24 @@ func TestToRows_KeepsHistoryOrder(t *testing.T) {
 }
 
 // TestToRows_SplitsParentAndName checks each row's parent directory, with
-// the home directory shortened to "~", and its name.
+// the home directory shortened to "~" and a trailing separator, and its
+// name.
 func TestToRows_SplitsParentAndName(t *testing.T) {
 	tests := []struct {
 		path, home, dir, name string
 	}{
-		{"/home/me/tools/cdd", "/home/me", "~/tools", "cdd"},
-		{"/home/me/cdd", "/home/me", "~", "cdd"},
-		{"/home/meta/cdd", "/home/me", "/home/meta", "cdd"},
-		{"/srv/lib", "/home/me", "/srv", "lib"},
-		{"/home/me/tools/cdd", "", "/home/me/tools", "cdd"},
+		{"/home/me/tools/cdd", "/home/me", "~/tools/", "cdd"},
+		{"/home/me/cdd", "/home/me", "~/", "cdd"},
+		{"/home/meta/cdd", "/home/me", "/home/meta/", "cdd"},
+		{"/srv/lib", "/home/me", "/srv/", "lib"},
+		{"/lib", "/home/me", "/", "lib"},
+		{"/home/me/tools/cdd", "", "/home/me/tools/", "cdd"},
 	}
 
 	for _, tt := range tests {
 		got := toRows([]history.Visit{{Project: tt.path}}, nil, tt.home)[0].Project
-		if got.Kind != tt.dir || got.Name != tt.name {
-			t.Errorf("toRows(%q, home %q) = %q + %q, want %q + %q", tt.path, tt.home, got.Kind, got.Name, tt.dir, tt.name)
+		if got.Dir != tt.dir || got.Name != tt.name {
+			t.Errorf("toRows(%q, home %q) = %q + %q, want %q + %q", tt.path, tt.home, got.Dir, got.Name, tt.dir, tt.name)
 		}
 	}
 }

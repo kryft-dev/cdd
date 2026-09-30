@@ -13,7 +13,7 @@ import (
 // paletteModel is a Model sized to a terminal but told nothing yet about
 // its background colour: the state the Picker opens in.
 func paletteModel() Model {
-	rows := []Row{{Project: Project{Kind: "work", Name: "alpha", Path: "/root/work/alpha"}}}
+	rows := []Row{{Project: Project{Dir: "~/work/", Name: "alpha", Path: "/root/work/alpha"}}}
 	m := NewModel(rows, func(context.Context, string) git.Status { return git.Status{} }, Options{})
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 110, Height: 30})
 	return next.(Model)
