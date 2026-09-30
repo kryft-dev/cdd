@@ -16,7 +16,7 @@ func TestSeed_AppendsWhenProjectHasNoVisit(t *testing.T) {
 	}
 
 	at := time.Date(2026, 9, 16, 14, 0, 0, 0, time.UTC)
-	if err := h.Seed("tools/cdd", at); err != nil {
+	if err := h.Seed("/p/tools/cdd", at); err != nil {
 		t.Fatalf("Seed: unexpected error: %v", err)
 	}
 
@@ -45,14 +45,14 @@ func TestSeed_AppendsWhenNewestVisitIsOlderScan(t *testing.T) {
 	older := time.Date(2026, 9, 16, 14, 0, 0, 0, time.UTC)
 	newer := time.Date(2026, 9, 16, 15, 0, 0, 0, time.UTC)
 
-	if err := h.Seed("tools/cdd", older); err != nil {
+	if err := h.Seed("/p/tools/cdd", older); err != nil {
 		t.Fatalf("Seed: unexpected error: %v", err)
 	}
-	if err := h.Seed("tools/cdd", newer); err != nil {
+	if err := h.Seed("/p/tools/cdd", newer); err != nil {
 		t.Fatalf("Seed: unexpected error: %v", err)
 	}
 
-	n, err := h.Count("tools/cdd")
+	n, err := h.Count("/p/tools/cdd")
 	if err != nil {
 		t.Fatalf("Count: unexpected error: %v", err)
 	}
@@ -79,14 +79,14 @@ func TestSeed_SkipsWhenNewestVisitIsScanNotOlder(t *testing.T) {
 	at := time.Date(2026, 9, 16, 14, 0, 0, 0, time.UTC)
 	earlierOrEqual := at // same instant: not strictly older, so no append
 
-	if err := h.Seed("tools/cdd", at); err != nil {
+	if err := h.Seed("/p/tools/cdd", at); err != nil {
 		t.Fatalf("Seed: unexpected error: %v", err)
 	}
-	if err := h.Seed("tools/cdd", earlierOrEqual); err != nil {
+	if err := h.Seed("/p/tools/cdd", earlierOrEqual); err != nil {
 		t.Fatalf("Seed: unexpected error: %v", err)
 	}
 
-	n, err := h.Count("tools/cdd")
+	n, err := h.Count("/p/tools/cdd")
 	if err != nil {
 		t.Fatalf("Count: unexpected error: %v", err)
 	}
@@ -102,18 +102,18 @@ func TestSeed_SkipsWhenNewestVisitIsJump(t *testing.T) {
 		t.Fatalf("Open: unexpected error: %v", err)
 	}
 
-	if err := h.Record("tools/cdd"); err != nil {
+	if err := h.Record("/p/tools/cdd"); err != nil {
 		t.Fatalf("Record: unexpected error: %v", err)
 	}
 
 	// A Scan dated well in the future must still never overwrite a jump
 	// Visit.
 	future := time.Now().UTC().Add(24 * time.Hour)
-	if err := h.Seed("tools/cdd", future); err != nil {
+	if err := h.Seed("/p/tools/cdd", future); err != nil {
 		t.Fatalf("Seed: unexpected error: %v", err)
 	}
 
-	n, err := h.Count("tools/cdd")
+	n, err := h.Count("/p/tools/cdd")
 	if err != nil {
 		t.Fatalf("Count: unexpected error: %v", err)
 	}

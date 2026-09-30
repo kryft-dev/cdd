@@ -13,19 +13,25 @@ import (
 // 4 KiB advisory limit.
 const maxLineBytes = 4096
 
-// Record appends a jump Visit for project, timestamped now (UTC, second
-// precision).
+// Record appends a jump Visit for project, an absolute path, timestamped
+// now (UTC, second precision).
 func (h *History) Record(project string) error {
+	if err := checkAbs(project); err != nil {
+		return err
+	}
 	v := Visit{At: time.Now().UTC(), Source: SourceJump, Project: project}
 	return h.withLock(func(f *os.File) error {
 		return h.appendAndCompact(f, v)
 	})
 }
 
-// Seed appends a scan Visit for project, timestamped at, but only if the
-// Project has no Visit at all, or its newest Visit is a scan line older
-// than at. A jump Visit is never overwritten by a Scan.
+// Seed appends a scan Visit for project, an absolute path, timestamped at,
+// but only if the Project has no Visit at all, or its newest Visit is a scan
+// line older than at. A jump Visit is never overwritten by a Scan.
 func (h *History) Seed(project string, at time.Time) error {
+	if err := checkAbs(project); err != nil {
+		return err
+	}
 	v := Visit{At: at.UTC(), Source: SourceScan, Project: project}
 	return h.withLock(func(f *os.File) error {
 		visits, err := parseVisits(f)
@@ -40,6 +46,15 @@ func (h *History) Seed(project string, at time.Time) error {
 
 		return h.appendAndCompact(f, v)
 	})
+}
+
+// checkAbs rejects a Project that is not an absolute path: readVisits would
+// skip its line as malformed, so the Visit would be silently lost.
+func checkAbs(project string) error {
+	if !filepath.IsAbs(project) {
+		return fmt.Errorf("history: project %q is not an absolute path", project)
+	}
+	return nil
 }
 
 // newestFor returns the newest Visit recorded for project, if any.

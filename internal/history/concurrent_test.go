@@ -123,7 +123,7 @@ func countHistoryLines(t *testing.T, path string) int {
 }
 
 func project(g, i int) string {
-	return "proj/" + strconv.Itoa(g) + "-" + strconv.Itoa(i)
+	return "/proj/" + strconv.Itoa(g) + "-" + strconv.Itoa(i)
 }
 
 func readAllForTest(t *testing.T, h *history.History) ([]history.Visit, error) {
