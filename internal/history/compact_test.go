@@ -21,7 +21,7 @@ func seedLines(t *testing.T, path string, n int) {
 	var sb strings.Builder
 	for i := range n {
 		at := base.Add(time.Duration(i) * time.Second)
-		fmt.Fprintf(&sb, "%s\tjump\tproj/%d\n", at.Format(time.RFC3339), i)
+		fmt.Fprintf(&sb, "%s\tjump\t/proj/%d\n", at.Format(time.RFC3339), i)
 	}
 	if err := os.WriteFile(path, []byte(sb.String()), 0o644); err != nil {
 		t.Fatalf("WriteFile: unexpected error: %v", err)
@@ -59,7 +59,7 @@ func TestRecord_CompactsPastTenPercentThreshold(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open: unexpected error: %v", err)
 	}
-	if err := h.Record("proj/new"); err != nil {
+	if err := h.Record("/proj/new"); err != nil {
 		t.Fatalf("Record: unexpected error: %v", err)
 	}
 	if got := countLines(t, path); got != 11 {
@@ -68,7 +68,7 @@ func TestRecord_CompactsPastTenPercentThreshold(t *testing.T) {
 
 	// One more append pushes the file past the threshold and must compact
 	// down to maxVisits lines.
-	if err := h.Record("proj/newer"); err != nil {
+	if err := h.Record("/proj/newer"); err != nil {
 		t.Fatalf("Record: unexpected error: %v", err)
 	}
 	if got := countLines(t, path); got != maxVisits {
@@ -87,7 +87,7 @@ func TestCompact_KeepsNewestLines(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open: unexpected error: %v", err)
 	}
-	if err := h.Record("proj/last"); err != nil {
+	if err := h.Record("/proj/last"); err != nil {
 		t.Fatalf("Record: unexpected error: %v", err)
 	}
 
@@ -98,11 +98,11 @@ func TestCompact_KeepsNewestLines(t *testing.T) {
 	if len(latest) != maxVisits {
 		t.Fatalf("Latest: got %d visits, want %d", len(latest), maxVisits)
 	}
-	if latest[0].Project != "proj/last" {
-		t.Errorf("Latest[0].Project = %q, want %q (most recent survives compaction)", latest[0].Project, "proj/last")
+	if latest[0].Project != "/proj/last" {
+		t.Errorf("Latest[0].Project = %q, want %q (most recent survives compaction)", latest[0].Project, "/proj/last")
 	}
 	for _, v := range latest {
-		if v.Project == "proj/0" {
+		if v.Project == "/proj/0" {
 			t.Errorf("Latest: found proj/0, oldest Visit should have been compacted away")
 		}
 	}
@@ -113,8 +113,8 @@ func TestCompact_DropsScanShadowedByNewerJump(t *testing.T) {
 	path := filepath.Join(dir, "history")
 	maxVisits := 3
 
-	content := "2026-01-01T00:00:00Z\tscan\tproj/a\n" +
-		"2026-01-01T00:00:01Z\tjump\tproj/a\n"
+	content := "2026-01-01T00:00:00Z\tscan\t/proj/a\n" +
+		"2026-01-01T00:00:01Z\tjump\t/proj/a\n"
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatalf("WriteFile: unexpected error: %v", err)
 	}
@@ -124,13 +124,13 @@ func TestCompact_DropsScanShadowedByNewerJump(t *testing.T) {
 		t.Fatalf("Open: unexpected error: %v", err)
 	}
 	// Force compaction with enough appends to cross the threshold.
-	if err := h.Record("proj/b"); err != nil {
+	if err := h.Record("/proj/b"); err != nil {
 		t.Fatalf("Record: unexpected error: %v", err)
 	}
-	if err := h.Record("proj/c"); err != nil {
+	if err := h.Record("/proj/c"); err != nil {
 		t.Fatalf("Record: unexpected error: %v", err)
 	}
-	if err := h.Record("proj/d"); err != nil {
+	if err := h.Record("/proj/d"); err != nil {
 		t.Fatalf("Record: unexpected error: %v", err)
 	}
 
@@ -141,7 +141,7 @@ func TestCompact_DropsScanShadowedByNewerJump(t *testing.T) {
 	defer func() { _ = f.Close() }()
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
-		if strings.Contains(scanner.Text(), "\tscan\tproj/a") {
+		if strings.Contains(scanner.Text(), "\tscan\t/proj/a") {
 			t.Errorf("compacted file still contains shadowed scan line: %q", scanner.Text())
 		}
 	}
@@ -152,8 +152,8 @@ func TestOpen_MalformedLinesDoNotPreventFutureCompaction(t *testing.T) {
 	path := filepath.Join(dir, "history")
 
 	content := "garbage line with no tabs\n" +
-		"2026-01-01T00:00:00Z\tjump\tproj/a\n" +
-		"2026-01-01T00:00:01\tjump\tproj/b\n" // malformed timestamp
+		"2026-01-01T00:00:00Z\tjump\t/proj/a\n" +
+		"2026-01-01T00:00:01\tjump\t/proj/b\n" // malformed timestamp
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatalf("WriteFile: unexpected error: %v", err)
 	}
@@ -170,7 +170,7 @@ func TestOpen_MalformedLinesDoNotPreventFutureCompaction(t *testing.T) {
 	if len(latest) != 1 {
 		t.Fatalf("Latest: got %d visits, want 1 (malformed lines skipped)", len(latest))
 	}
-	if latest[0].Project != "proj/a" {
-		t.Errorf("Project = %q, want %q", latest[0].Project, "proj/a")
+	if latest[0].Project != "/proj/a" {
+		t.Errorf("Project = %q, want %q", latest[0].Project, "/proj/a")
 	}
 }

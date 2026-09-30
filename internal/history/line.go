@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -16,7 +17,8 @@ func formatLine(v Visit) string {
 
 // parseLine parses one History line into a Visit. It reports ok=false for
 // any malformed line: wrong field count, an unparseable timestamp, an
-// unknown source, or an empty Project.
+// unknown source, or a Project that is not an absolute path (which also
+// covers the Root-relative lines History held before v0.3.0).
 func parseLine(line string) (v Visit, ok bool) {
 	fields := strings.Split(line, "\t")
 	if len(fields) != 3 {
@@ -39,7 +41,7 @@ func parseLine(line string) (v Visit, ok bool) {
 	}
 
 	project := fields[2]
-	if project == "" {
+	if !filepath.IsAbs(project) {
 		return Visit{}, false
 	}
 

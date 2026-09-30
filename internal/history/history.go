@@ -1,6 +1,6 @@
 // Package history stores the ordered record of Visits from which recent
-// Projects are derived. It stores Kind and Project only as path strings and
-// does not import internal/project.
+// Projects are derived. It stores each Project as its absolute path and does
+// not import internal/project.
 package history
 
 import (
@@ -27,7 +27,7 @@ type Visit struct {
 	At time.Time
 	// Source is how the Visit was recorded: SourceJump or SourceScan.
 	Source Source
-	// Project is the Project's path relative to Root, e.g. "tools/cdd".
+	// Project is the Project's absolute path, e.g. "/home/me/tools/cdd".
 	Project string
 }
 
