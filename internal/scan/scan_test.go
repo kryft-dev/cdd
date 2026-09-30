@@ -36,24 +36,25 @@ func runGit(t *testing.T, dir string, args ...string) {
 	}
 }
 
-// newProjectDir creates a directory for a Project at kind/name under root.
-func newProjectDir(t *testing.T, root, kind, name string) string {
+// newProjectDir creates a Project at rel under root: a git repository with
+// no commit yet, and returns its path.
+func newProjectDir(t *testing.T, root, rel string) string {
 	t.Helper()
 
-	dir := filepath.Join(root, kind, name)
+	dir := filepath.Join(root, rel)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("mkdir %s: %v", dir, err)
 	}
+	runGit(t, dir, "init", "-q", "-b", "main")
 	return dir
 }
 
-// newRepoProjectDir creates a Project directory that is also a git
-// repository with one commit, and returns its path.
-func newRepoProjectDir(t *testing.T, root, kind, name string) string {
+// newRepoProjectDir creates a Project at rel under root with one commit,
+// and returns its path.
+func newRepoProjectDir(t *testing.T, root, rel string) string {
 	t.Helper()
 
-	dir := newProjectDir(t, root, kind, name)
-	runGit(t, dir, "init", "-q", "-b", "main")
+	dir := newProjectDir(t, root, rel)
 	runGit(t, dir, "config", "user.name", "cdd test")
 	runGit(t, dir, "config", "user.email", "cdd-test@example.com")
 	if err := os.WriteFile(filepath.Join(dir, "file.txt"), []byte("hi"), 0o644); err != nil {
@@ -76,13 +77,13 @@ func newHistory(t *testing.T) *history.History {
 	return hist
 }
 
-func newConfig(root string, exclude []string) config.Config {
-	return config.Config{Root: root, Exclude: exclude}
+func newConfig(exclude []string) config.Config {
+	return config.Config{Exclude: exclude}
 }
 
 func TestRun_RepositorySeededFromCommitTime(t *testing.T) {
 	root := t.TempDir()
-	dir := newRepoProjectDir(t, root, "tools", "cdd")
+	dir := newRepoProjectDir(t, root, "tools/cdd")
 
 	commitTime, ok, err := git.LastCommit(context.Background(), dir)
 	if err != nil || !ok {
@@ -90,7 +91,7 @@ func TestRun_RepositorySeededFromCommitTime(t *testing.T) {
 	}
 
 	hist := newHistory(t)
-	summary, err := scan.Run(context.Background(), newConfig(root, nil), hist)
+	summary, err := scan.Run(context.Background(), []string{root}, newConfig(nil), hist)
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -105,8 +106,8 @@ func TestRun_RepositorySeededFromCommitTime(t *testing.T) {
 	if len(visits) != 1 {
 		t.Fatalf("len(visits) = %d, want 1", len(visits))
 	}
-	if visits[0].Project != "tools/cdd" {
-		t.Fatalf("project = %q, want tools/cdd", visits[0].Project)
+	if visits[0].Project != dir {
+		t.Fatalf("project = %q, want %q", visits[0].Project, dir)
 	}
 	if visits[0].Source != history.SourceScan {
 		t.Fatalf("source = %q, want scan", visits[0].Source)
@@ -116,9 +117,9 @@ func TestRun_RepositorySeededFromCommitTime(t *testing.T) {
 	}
 }
 
-func TestRun_NonRepositorySeededFromMtime(t *testing.T) {
+func TestRun_RepositoryWithoutCommitSeededFromMtime(t *testing.T) {
 	root := t.TempDir()
-	dir := newProjectDir(t, root, "tools", "scratch")
+	dir := newProjectDir(t, root, "tools/scratch")
 
 	info, err := os.Stat(dir)
 	if err != nil {
@@ -126,7 +127,7 @@ func TestRun_NonRepositorySeededFromMtime(t *testing.T) {
 	}
 
 	hist := newHistory(t)
-	summary, err := scan.Run(context.Background(), newConfig(root, nil), hist)
+	summary, err := scan.Run(context.Background(), []string{root}, newConfig(nil), hist)
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -149,10 +150,10 @@ func TestRun_NonRepositorySeededFromMtime(t *testing.T) {
 
 func TestRun_AlreadyJumpedProjectNotOverwritten(t *testing.T) {
 	root := t.TempDir()
-	newProjectDir(t, root, "tools", "cdd")
+	dir := newProjectDir(t, root, "tools/cdd")
 
 	hist := newHistory(t)
-	if err := hist.Record("tools/cdd"); err != nil {
+	if err := hist.Record(dir); err != nil {
 		t.Fatalf("Record: %v", err)
 	}
 	before, err := hist.Latest()
@@ -160,7 +161,7 @@ func TestRun_AlreadyJumpedProjectNotOverwritten(t *testing.T) {
 		t.Fatalf("Latest: %v", err)
 	}
 
-	summary, err := scan.Run(context.Background(), newConfig(root, nil), hist)
+	summary, err := scan.Run(context.Background(), []string{root}, newConfig(nil), hist)
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -179,16 +180,16 @@ func TestRun_AlreadyJumpedProjectNotOverwritten(t *testing.T) {
 
 func TestRun_SecondRunSeedsNothingNew(t *testing.T) {
 	root := t.TempDir()
-	newProjectDir(t, root, "tools", "cdd")
+	newProjectDir(t, root, "tools/cdd")
 
 	hist := newHistory(t)
-	cfg := newConfig(root, nil)
+	cfg := newConfig(nil)
 
-	if _, err := scan.Run(context.Background(), cfg, hist); err != nil {
+	if _, err := scan.Run(context.Background(), []string{root}, cfg, hist); err != nil {
 		t.Fatalf("first Run: %v", err)
 	}
 
-	summary, err := scan.Run(context.Background(), cfg, hist)
+	summary, err := scan.Run(context.Background(), []string{root}, cfg, hist)
 	if err != nil {
 		t.Fatalf("second Run: %v", err)
 	}
@@ -199,11 +200,11 @@ func TestRun_SecondRunSeedsNothingNew(t *testing.T) {
 
 func TestRun_ExcludedProjectSkipped(t *testing.T) {
 	root := t.TempDir()
-	newProjectDir(t, root, "tools", "cdd")
-	newProjectDir(t, root, "tools", "scratch")
+	dir := newProjectDir(t, root, "tools/cdd")
+	newProjectDir(t, root, "tools/scratch")
 
 	hist := newHistory(t)
-	summary, err := scan.Run(context.Background(), newConfig(root, []string{"tools/scratch"}), hist)
+	summary, err := scan.Run(context.Background(), []string{root}, newConfig([]string{"scratch"}), hist)
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -215,7 +216,22 @@ func TestRun_ExcludedProjectSkipped(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Latest: %v", err)
 	}
-	if len(visits) != 1 || visits[0].Project != "tools/cdd" {
-		t.Fatalf("visits = %+v, want only tools/cdd", visits)
+	if len(visits) != 1 || visits[0].Project != dir {
+		t.Fatalf("visits = %+v, want only %q", visits, dir)
+	}
+}
+
+func TestRun_PlainDirectoryNotSeeded(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "notes"), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	summary, err := scan.Run(context.Background(), []string{root}, newConfig(nil), newHistory(t))
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if summary != (scan.Summary{}) {
+		t.Fatalf("summary = %+v, want nothing seeded", summary)
 	}
 }

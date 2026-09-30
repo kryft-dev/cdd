@@ -1,27 +1,20 @@
-// Package project discovers Projects under a Root: every directory directly
-// under Root is a Kind, and every directory directly under a Kind is a
-// Project.
+// Package project finds Projects, directories holding a git repository, by
+// walking the directories a Scan is given, and tells whether a path still
+// holds one.
 package project
 
 import (
-	"path"
+	"os"
 	"path/filepath"
 )
 
-// Project is a directory exactly one level below a Kind, identified by its
-// path relative to Root.
-type Project struct {
-	Kind string
-	Name string
-}
+// gitEntry is the name whose presence, as a directory (a clone) or a file
+// (a worktree or submodule), makes a directory a Project.
+const gitEntry = ".git"
 
-// Rel returns the Project's path relative to Root, as "kind/name".
-func (p Project) Rel() string {
-	return path.Join(p.Kind, p.Name)
-}
-
-// Abs returns the Project's absolute path given root, the Root it was
-// discovered under.
-func (p Project) Abs(root string) string {
-	return filepath.Join(root, p.Kind, p.Name)
+// IsRepo reports whether dir holds a git repository: a .git directory or
+// file directly inside it.
+func IsRepo(dir string) bool {
+	_, err := os.Lstat(filepath.Join(dir, gitEntry))
+	return err == nil
 }

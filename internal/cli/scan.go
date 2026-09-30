@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
@@ -10,14 +11,22 @@ import (
 	"github.com/kryft-dev/cdd/internal/scan"
 )
 
-// newScanCmd builds "cdd scan": seed History with one Visit per discovered
-// Project and print a one-line summary.
+// newScanCmd builds "cdd scan [dir...]": seed History with one Visit per
+// Project found at any depth below each dir (the home directory when none
+// is given) and print a one-line summary.
 func newScanCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "scan",
-		Short: "seed History with one Visit per discovered Project",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		Use:   "scan [dir...]",
+		Short: "seed History with one Visit per git repository found below each dir (default: home)",
+		RunE: func(cmd *cobra.Command, dirs []string) error {
+			if len(dirs) == 0 {
+				home, err := os.UserHomeDir()
+				if err != nil {
+					return fmt.Errorf("cdd: locate home directory: %w", err)
+				}
+				dirs = []string{home}
+			}
+
 			cfg, err := config.Load()
 			if err != nil {
 				return err
@@ -33,7 +42,7 @@ func newScanCmd() *cobra.Command {
 				return err
 			}
 
-			summary, err := scan.Run(cmd.Context(), cfg, hist)
+			summary, err := scan.Run(cmd.Context(), dirs, cfg, hist)
 			if err != nil {
 				return err
 			}
