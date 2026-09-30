@@ -21,7 +21,7 @@ const (
 )
 
 // match is one row along with where, if anywhere, the current query matched
-// its Project's path, for highlighting and ordering within its Kind group.
+// its Project's path, for highlighting.
 type match struct {
 	row     Row
 	matches []int // rune indexes into the matched string, for highlighting
@@ -37,7 +37,7 @@ type Model struct {
 
 	query  string
 	focus  focus
-	cursor int // index into the current visible/filtered+grouped rows
+	cursor int // index into the current visible (filtered) rows
 
 	statuses map[string]git.Status // keyed by Project.Path
 
@@ -63,7 +63,7 @@ func NewModel(rows []Row, status StatusFunc, opts Options) Model {
 	}
 	layout := opts.Layout
 	if layout == "" {
-		layout = LayoutGrouped
+		layout = LayoutList
 	}
 	return Model{
 		rows:     rows,
@@ -135,11 +135,8 @@ func statusCmd(status StatusFunc, path string, sem chan struct{}) tea.Cmd {
 	}
 }
 
-// visible returns the current query's matches over rows, in row order
-// (which preserves History order within a match set, since fuzzy.Find is
-// stable relative to its input order for equal scores is not guaranteed,
-// but grouping below only depends on first-appearance order of Kind, not on
-// score order).
+// visibleMatches returns the current query's matches over rows: every row
+// in History order when the query is empty, otherwise fuzzy.Find's ranking.
 func (m Model) visibleMatches() []match {
 	if m.query == "" {
 		out := make([]match, len(m.rows))
@@ -162,57 +159,8 @@ func (m Model) visibleMatches() []match {
 	return out
 }
 
-// kindGroup is one Kind's header plus the matches that fall under it, in
-// the order Kinds first appear among the visible matches.
-type kindGroup struct {
-	kind    string
-	matches []match
-}
-
-// groupByKind groups matches under their Project's Kind, ordering Kinds by
-// first appearance in matches (which is History order, or fuzzy-ranked
-// order when a query is active) and keeping each Kind's own rows in that
-// same order.
-func groupByKind(matches []match) []kindGroup {
-	var groups []kindGroup
-	index := make(map[string]int)
-	for _, mt := range matches {
-		kind := mt.row.Project.Kind
-		i, ok := index[kind]
-		if !ok {
-			i = len(groups)
-			index[kind] = i
-			groups = append(groups, kindGroup{kind: kind})
-		}
-		groups[i].matches = append(groups[i].matches, mt)
-	}
-	return groups
-}
-
-// visibleGroups returns the current query's matches grouped by Kind, in the
-// order rows are actually displayed: the order the Picker's cursor and
-// filtering operate on.
-func (m Model) visibleGroups() []kindGroup {
-	return groupByKind(m.visibleMatches())
-}
-
-// visibleRows returns the current query's matches in the order the active
-// layout draws them: grouped by Kind for LayoutGrouped, flat History order
-// for LayoutList. It is the order the cursor indexes into.
+// visibleRows returns the current query's matches in the order the layout
+// draws them. It is the order the cursor indexes into.
 func (m Model) visibleRows() []match {
-	matches := m.visibleMatches()
-	if m.layout == LayoutList {
-		return matches
-	}
-	return flatten(groupByKind(matches))
-}
-
-// flatten lays a Kind grouping out as a single ordered slice of matches,
-// matching the row order the list draws (header lines aside).
-func flatten(groups []kindGroup) []match {
-	var out []match
-	for _, g := range groups {
-		out = append(out, g.matches...)
-	}
-	return out
+	return m.visibleMatches()
 }

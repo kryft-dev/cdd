@@ -55,8 +55,7 @@ var plainStyle = lipgloss.NewStyle()
 
 // padRightOn and padLeftOn pad a plain or styled string to a display
 // width, putting the padding through base so a row background covers it
-// too. The grouped layout passes plainStyle; the list layout passes the
-// selected row's background.
+// too. The list layout passes the selected row's background.
 func padRightOn(base lipgloss.Style, s string, w int) string {
 	if d := w - lipgloss.Width(s); d > 0 {
 		return s + base.Render(strings.Repeat(" ", d))
@@ -84,15 +83,10 @@ const (
 	glyphLoading   = "…"
 )
 
-// statusCluster renders the compact coloured glyph cluster for one row's
-// status: "✓", "● ?", "● ↑3↓2", "—", "…", "!".
-func (t theme) statusCluster(st git.Status, loaded bool) string {
-	return t.statusClusterOn(plainStyle, st, loaded)
-}
-
-// statusClusterOn renders statusCluster over base, which carries the row's
-// background in the list layout so the highlight runs through the glyphs
-// and the space between them.
+// statusClusterOn renders the compact coloured glyph cluster for one row's
+// status ("✓", "● ?", "● ↑3↓2", "—", "…", "!") over base, which carries the
+// row's background in the list layout so the highlight runs through the
+// glyphs and the space between them.
 func (t theme) statusClusterOn(base lipgloss.Style, st git.Status, loaded bool) string {
 	f := func(c color.Color, s string) string { return base.Foreground(c).Render(s) }
 

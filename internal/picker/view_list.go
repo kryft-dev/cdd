@@ -7,14 +7,12 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-// selBar marks the selected row in the list layout, standing in for the
-// grouped layout's caret.
+// selBar marks the selected row in the list layout.
 const selBar = "▌"
 
 // listFrame renders the flat fzf-style layout: rows in the order they were
-// given (History order, never-visited Projects last) with no Kind headers,
-// the filter prompt below them where fzf users expect it, and the shared
-// preview pane and footer.
+// given (History order), the filter prompt below them where fzf users
+// expect it, and the shared preview pane and footer.
 func (m Model) listFrame(t theme, now time.Time) string {
 	rows := m.visibleRows()
 	width, height := m.frameSize()

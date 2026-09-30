@@ -12,7 +12,8 @@ const nameFloor = 8
 // it the preview is not drawn at all.
 const previewFloor = 30
 
-// caretWidth is the fixed-width caret/gutter column ("   " or " › ").
+// caretWidth is the fixed gutter each row spends outside its columns: the
+// selection bar and the spacing around it.
 const caretWidth = 3
 
 // statusReserve is the width the status column is held at from the first
@@ -36,7 +37,7 @@ type Layout struct {
 	// form (now, 5m, 2h, 3d, 2w, 3mo, 1y).
 	ShortTime bool
 
-	// ListWidth is the total width given to the grouped list pane.
+	// ListWidth is the total width given to the list pane.
 	ListWidth int
 	// PreviewWidth is the width given to the preview pane, when ShowPreview
 	// is true.
@@ -127,17 +128,12 @@ func (m Model) frameSize() (width, height int) {
 }
 
 // computeLayout sizes one frame from the rows it has to show. The name
-// column holds the Project name in the grouped layout and "kind/name" in
-// the list layout; the two layouts spend the same total width on their
-// other columns, so one budget serves both.
+// column holds "kind/name".
 func (m Model) computeLayout(rows []match, now time.Time, width, height int) Layout {
 	longestName, widestStatus := 0, 1
 	times := make([]time.Time, 0, len(rows))
 	for _, mt := range rows {
-		n := len([]rune(mt.row.Project.Name))
-		if m.layout == LayoutList {
-			n += len([]rune(mt.row.Project.Kind)) + 1 // "kind/"
-		}
+		n := len([]rune(mt.row.Project.Kind)) + 1 + len([]rune(mt.row.Project.Name)) // "kind/name"
 		if n > longestName {
 			longestName = n
 		}
