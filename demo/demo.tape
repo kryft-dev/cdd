@@ -1,5 +1,5 @@
 # Records demo/demo.gif against the environment built by demo/setup.sh.
-# Run `demo/setup.sh` first; it never touches your real Root or History.
+# Run `demo/setup.sh` first; it never touches your real home or History.
 #
 #   demo/setup.sh && vhs demo/demo.tape
 #
@@ -19,12 +19,13 @@ Set TypingSpeed 60ms
 
 Env XDG_CONFIG_HOME "/tmp/cdd-demo/xdg/config"
 Env XDG_DATA_HOME "/tmp/cdd-demo/xdg/data"
+Env HOME "/tmp/cdd-demo/home"
 
 Hide
 Type "set -gx PATH /tmp/cdd-demo/bin $PATH" Enter
 Type "set -g fish_autosuggestion_enabled 0" Enter
 Type "cdd init fish | source" Enter
-Type "cd /tmp/cdd-demo/root/lab/notes" Enter
+Type "cd ~/notes" Enter
 Type "clear" Enter
 Show
 
