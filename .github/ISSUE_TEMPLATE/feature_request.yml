@@ -15,7 +15,7 @@ body:
     id: solution
     attributes:
       label: Proposed solution
-      description: What you would like cdd to do, using the project's vocabulary (Root, Kind, Project, Jump, Visit, History, Scan, Picker, Wrapper) where relevant.
+      description: What you would like cdd to do, using the project's vocabulary (Project, Jump, Visit, History, Scan, Picker, Wrapper) where relevant.
     validations:
       required: true
   - type: textarea
