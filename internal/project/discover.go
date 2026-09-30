@@ -3,137 +3,120 @@ package project
 import (
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"sort"
 	"strings"
 )
 
-// Discover walks root, treating every directory directly under root as a
-// Kind and every directory directly under a Kind as a Project. Names
-// starting with "." are skipped at both levels unless includeHidden is
-// true. Each entry of exclude is matched with path.Match, once against the
-// Kind name alone (e.g. "archive") and once against the Project's Rel
-// (e.g. "tools/scratch", "archive/*", "*/node_modules"); a match at either
-// level skips that Kind or Project. Symlinked directories count as
-// directories; non-directories are ignored. The result is sorted by Rel.
-func Discover(root string, exclude []string, includeHidden bool) ([]Project, error) {
+// Discover walks each of dirs to any depth and returns the absolute path of
+// every Project found, sorted and without duplicates.
+//
+// The walk stops descending at a Project, so repositories nested inside one
+// are not listed, except in a directory named in dirs: that is always
+// walked, and listed too when it is itself a Project. Symlinks met during
+// the walk are not followed, though a directory in dirs may be one.
+// Directories that cannot be read are skipped silently.
+//
+// Names starting with "." are skipped unless includeHidden is true. Each
+// exclude pattern is matched with filepath.Match: a pattern containing "/"
+// against a directory's absolute path (e.g. "/home/me/go/pkg/*"), any other
+// against its name alone (e.g. "node_modules"). A match skips the directory
+// and everything below it.
+func Discover(dirs, exclude []string, includeHidden bool) ([]string, error) {
 	if err := validatePatterns(exclude); err != nil {
 		return nil, err
 	}
 
-	kindEntries, err := os.ReadDir(root)
-	if err != nil {
-		return nil, fmt.Errorf("read root %q: %w", root, err)
+	w := walker{exclude: exclude, includeHidden: includeHidden, found: map[string]bool{}}
+	for _, dir := range dirs {
+		abs, err := filepath.Abs(dir)
+		if err != nil {
+			return nil, fmt.Errorf("resolve %q: %w", dir, err)
+		}
+		info, err := os.Stat(abs)
+		if err != nil {
+			return nil, fmt.Errorf("read %q: %w", dir, err)
+		}
+		if !info.IsDir() {
+			return nil, fmt.Errorf("%q is not a directory", dir)
+		}
+		w.walk(abs, true)
 	}
 
-	var projects []Project
-	for _, kindEntry := range kindEntries {
-		kind := kindEntry.Name()
-		if skipHidden(kind, includeHidden) {
-			continue
-		}
-
-		isDir, err := isDirEntry(root, kindEntry)
-		if err != nil {
-			return nil, err
-		}
-		if !isDir {
-			continue
-		}
-
-		matched, err := matchAny(exclude, kind)
-		if err != nil {
-			return nil, err
-		}
-		if matched {
-			continue
-		}
-
-		kindPath := filepath.Join(root, kind)
-		projEntries, err := os.ReadDir(kindPath)
-		if err != nil {
-			return nil, fmt.Errorf("read kind %q: %w", kindPath, err)
-		}
-
-		for _, projEntry := range projEntries {
-			name := projEntry.Name()
-			if skipHidden(name, includeHidden) {
-				continue
-			}
-
-			isDir, err := isDirEntry(kindPath, projEntry)
-			if err != nil {
-				return nil, err
-			}
-			if !isDir {
-				continue
-			}
-
-			p := Project{Kind: kind, Name: name}
-
-			matched, err := matchAny(exclude, p.Rel())
-			if err != nil {
-				return nil, err
-			}
-			if matched {
-				continue
-			}
-
-			projects = append(projects, p)
-		}
+	projects := make([]string, 0, len(w.found))
+	for p := range w.found {
+		projects = append(projects, p)
 	}
-
-	sort.Slice(projects, func(i, j int) bool {
-		return projects[i].Rel() < projects[j].Rel()
-	})
-
+	sort.Strings(projects)
 	return projects, nil
 }
 
-// skipHidden reports whether name should be skipped for starting with "."
-// when includeHidden is false.
-func skipHidden(name string, includeHidden bool) bool {
-	return !includeHidden && strings.HasPrefix(name, ".")
+// walker carries one Discover's settings and the Projects found so far.
+type walker struct {
+	exclude       []string
+	includeHidden bool
+	found         map[string]bool
 }
 
-// isDirEntry reports whether entry, found in dir, is a directory. A
-// symlink is resolved and counts as a directory when its target is one; a
-// broken symlink is treated as not a directory.
-func isDirEntry(dir string, entry os.DirEntry) (bool, error) {
-	if entry.Type()&os.ModeSymlink == 0 {
-		return entry.IsDir(), nil
+// walk records dir when it is a Project and descends into its child
+// directories. given marks a directory named to Discover, which is walked
+// even when it is a Project.
+func (w walker) walk(dir string, given bool) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
 	}
 
-	info, err := os.Stat(filepath.Join(dir, entry.Name()))
-	if err != nil {
-		// A broken symlink is not a directory.
-		return false, nil
+	for _, e := range entries {
+		if e.Name() == gitEntry {
+			w.found[dir] = true
+			if !given {
+				return
+			}
+			break
+		}
 	}
-	return info.IsDir(), nil
+
+	for _, e := range entries {
+		// A symlink's DirEntry is never a directory, so symlinks are not
+		// followed.
+		if !e.IsDir() || e.Name() == gitEntry {
+			continue
+		}
+		child := filepath.Join(dir, e.Name())
+		if w.skip(e.Name(), child) {
+			continue
+		}
+		w.walk(child, false)
+	}
+}
+
+// skip reports whether the directory named name at path is hidden (and
+// hidden directories are not included) or matches an exclude pattern.
+func (w walker) skip(name, path string) bool {
+	if !w.includeHidden && strings.HasPrefix(name, ".") {
+		return true
+	}
+	for _, p := range w.exclude {
+		target := name
+		if strings.Contains(p, "/") {
+			target = path
+		}
+		// validatePatterns has already rejected malformed patterns.
+		if matched, _ := filepath.Match(p, target); matched {
+			return true
+		}
+	}
+	return false
 }
 
 // validatePatterns returns an error if any exclude pattern is malformed,
-// per path.Match.
+// per filepath.Match.
 func validatePatterns(exclude []string) error {
 	for _, p := range exclude {
-		if _, err := path.Match(p, ""); err != nil {
+		if _, err := filepath.Match(p, ""); err != nil {
 			return fmt.Errorf("invalid exclude pattern %q: %w", p, err)
 		}
 	}
 	return nil
-}
-
-// matchAny reports whether s matches any of the exclude patterns.
-func matchAny(exclude []string, s string) (bool, error) {
-	for _, p := range exclude {
-		matched, err := path.Match(p, s)
-		if err != nil {
-			return false, fmt.Errorf("invalid exclude pattern %q: %w", p, err)
-		}
-		if matched {
-			return true, nil
-		}
-	}
-	return false, nil
 }

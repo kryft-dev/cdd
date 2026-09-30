@@ -149,14 +149,6 @@ func TestPickUsageError(t *testing.T) {
 	}
 }
 
-// TestScanUsageError checks that "cdd scan" with an argument exits 2.
-func TestScanUsageError(t *testing.T) {
-	code, _, _ := runCLI(t, "scan", "extra")
-	if code != 2 {
-		t.Errorf("exit code = %d, want 2", code)
-	}
-}
-
 // TestHelp checks that "cdd help" and "cdd --help" both exit 0 and print
 // something to stdout.
 func TestHelp(t *testing.T) {

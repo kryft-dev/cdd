@@ -5,7 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path"
+	"path/filepath"
+	"strings"
 
 	"github.com/kryft-dev/cdd/internal/config"
 	"github.com/kryft-dev/cdd/internal/git"
@@ -24,19 +25,14 @@ var ErrCancelled = errors.New("jump: cancelled")
 type PickFunc func(rows []picker.Row, status picker.StatusFunc, opts picker.Options) (picker.Row, bool, error)
 
 // Resolve runs the pick flow that turns query into the absolute path of
-// the Project to Jump to: discover Projects, read History's latest Visits,
-// take the exact-match shortcut on a Project's Name or Rel, otherwise run
-// the Picker (via pick) with query prefilled, confirm the chosen
-// directory still exists, Record the Visit, and return the absolute path.
+// the Project to Jump to: read History's latest Visits, drop the Stale
+// ones, take the exact-match shortcut on a Project's name or trailing path,
+// otherwise run the Picker (via pick) with query prefilled, confirm the
+// chosen directory still exists, Record the Visit, and return the path.
 //
 // A cancelled Picker yields ErrCancelled. A Visit that fails to Record
 // only prints a warning to stderr; Resolve still returns the path.
 func Resolve(ctx context.Context, cfg config.Config, hist *history.History, query string, pick PickFunc) (string, error) {
-	projects, err := project.Discover(cfg.Root, cfg.Exclude, cfg.IncludeHidden)
-	if err != nil {
-		return "", fmt.Errorf("jump: discover projects: %w", err)
-	}
-
 	latest, err := hist.Latest()
 	if err != nil {
 		return "", fmt.Errorf("jump: %w", err)
@@ -47,30 +43,43 @@ func Resolve(ctx context.Context, cfg config.Config, hist *history.History, quer
 		return "", fmt.Errorf("jump: %w", err)
 	}
 
-	rel, abs, err := choose(cfg, projects, latest, counts, query, pick)
+	path, err := choose(cfg, live(latest), counts, query, pick)
 	if err != nil {
 		return "", err
 	}
 
-	if _, err := os.Stat(abs); err != nil {
-		return "", fmt.Errorf("jump: %q no longer exists: %w", abs, err)
+	if _, err := os.Stat(path); err != nil {
+		return "", fmt.Errorf("jump: %q no longer exists: %w", path, err)
 	}
 
-	if err := hist.Record(rel); err != nil {
-		fmt.Fprintf(os.Stderr, "cdd: warning: recording Visit for %q: %v\n", rel, err)
+	if err := hist.Record(path); err != nil {
+		fmt.Fprintf(os.Stderr, "cdd: warning: recording Visit for %q: %v\n", path, err)
 	}
 
-	return abs, nil
+	return path, nil
+}
+
+// live drops each Stale Visit from latest: one whose Project no longer
+// holds a git repository.
+func live(latest []history.Visit) []history.Visit {
+	out := make([]history.Visit, 0, len(latest))
+	for _, v := range latest {
+		if project.IsRepo(v.Project) {
+			out = append(out, v)
+		}
+	}
+	return out
 }
 
 // choose picks a Project either via the exact-match shortcut or by running
-// the Picker, and returns its Rel and absolute path.
-func choose(cfg config.Config, projects []project.Project, latest []history.Visit, counts map[string]int, query string, pick PickFunc) (rel, abs string, err error) {
-	if p, ok := exactMatch(projects, query); ok {
-		return p.Rel(), p.Abs(cfg.Root), nil
+// the Picker, and returns its absolute path.
+func choose(cfg config.Config, latest []history.Visit, counts map[string]int, query string, pick PickFunc) (string, error) {
+	if p, ok := exactMatch(latest, query); ok {
+		return p, nil
 	}
 
-	rows := order(projects, latest, counts, cfg.Root)
+	home, _ := os.UserHomeDir()
+	rows := toRows(latest, counts, home)
 	status := func(c context.Context, dir string) git.Status {
 		s, _ := git.GetStatus(c, dir)
 		return s
@@ -78,29 +87,29 @@ func choose(cfg config.Config, projects []project.Project, latest []history.Visi
 
 	row, ok, err := pick(rows, status, picker.Options{Vim: cfg.Keys.Vim, Query: query, Layout: picker.LayoutStyle(cfg.Picker.Layout)})
 	if err != nil {
-		return "", "", fmt.Errorf("jump: %w", err)
+		return "", fmt.Errorf("jump: %w", err)
 	}
 	if !ok {
-		return "", "", ErrCancelled
+		return "", ErrCancelled
 	}
-
-	rel = path.Join(row.Project.Kind, row.Project.Name)
-	return rel, row.Project.Path, nil
+	return row.Project.Path, nil
 }
 
-// exactMatch reports whether query is exactly one Project's Name or Rel.
-// A query matching two or more Projects (e.g. the same Name in different
-// Kinds), or none, is not an exact match.
-func exactMatch(projects []project.Project, query string) (project.Project, bool) {
+// exactMatch reports whether query names exactly one Project in latest:
+// its name, or any trailing run of its path ("cdd", "tools/cdd"), or the
+// whole path. A query matching two or more Projects, or none, is not an
+// exact match.
+func exactMatch(latest []history.Visit, query string) (string, bool) {
+	query = strings.TrimSuffix(query, "/")
 	if query == "" {
-		return project.Project{}, false
+		return "", false
 	}
 
-	var found project.Project
+	var found string
 	count := 0
-	for _, p := range projects {
-		if p.Name == query || p.Rel() == query {
-			found = p
+	for _, v := range latest {
+		if v.Project == query || strings.HasSuffix(v.Project, string(filepath.Separator)+query) {
+			found = v.Project
 			count++
 		}
 	}

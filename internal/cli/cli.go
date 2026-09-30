@@ -56,7 +56,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 func newRootCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use:   "cdd",
-		Short: "cdd finds Projects under a Root and Jumps to the one you pick",
+		Short: "cdd Jumps to the git repository you pick from your recent Projects",
 	}
 	root.Flags().BoolP("version", "V", false, "print the cdd version and exit")
 

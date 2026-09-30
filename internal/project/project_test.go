@@ -1,23 +1,24 @@
 package project_test
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/kryft-dev/cdd/internal/project"
 )
 
-func TestProjectRel(t *testing.T) {
-	p := project.Project{Kind: "tools", Name: "cdd"}
-	if got, want := p.Rel(), "tools/cdd"; got != want {
-		t.Errorf("Rel() = %q, want %q", got, want)
+func TestIsRepo(t *testing.T) {
+	root := t.TempDir()
+	mkRepos(t, root, "clone")
+	mkDirs(t, root, "plain", "worktree")
+	if err := os.WriteFile(filepath.Join(root, "worktree", ".git"), []byte("gitdir: /elsewhere\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
 	}
-}
 
-func TestProjectAbs(t *testing.T) {
-	p := project.Project{Kind: "tools", Name: "cdd"}
-	root := "/home/user/Developer"
-	if got, want := p.Abs(root), filepath.Join(root, "tools", "cdd"); got != want {
-		t.Errorf("Abs(%q) = %q, want %q", root, got, want)
+	for dir, want := range map[string]bool{"clone": true, "worktree": true, "plain": false, "missing": false} {
+		if got := project.IsRepo(filepath.Join(root, dir)); got != want {
+			t.Errorf("IsRepo(%s) = %v, want %v", dir, got, want)
+		}
 	}
 }
