@@ -23,7 +23,7 @@ recently used Projects.
 ## Vocabulary
 
 Before writing code or docs, read [`CONTEXT.md`](CONTEXT.md). It is the
-glossary for this project: terms like Root, Kind, Project, Jump, Visit, Stale
+glossary for this project: terms like Project, Jump, Visit, Stale
 Visit, History, Scan, Picker, and Wrapper have precise, agreed meanings.
 Use those terms verbatim in code, comments, commit messages, and pull
 requests instead of synonyms, so the codebase and its discussions share one
