@@ -1,10 +1,12 @@
 # cdd
 
-A TUI that lets you jump to recent Projects.
+A TUI that lets you jump to the git repositories you work in, most recent
+first. There is nothing to lay out or configure: `cdd scan` finds every
+repository below the directories you give it, at any depth.
 
 ## Demo
 
-<!-- Recorded with VHS against a throwaway Root: demo/setup.sh && vhs demo/demo.tape -->
+<!-- Recorded with VHS against a throwaway home: demo/setup.sh && vhs demo/demo.tape -->
 ![cdd demo](demo/demo.gif)
 
 ## Install
@@ -54,20 +56,34 @@ eval "$(cdd init zsh)"
 
 ## First run
 
-Create a `config.toml` (see [Config reference](#config-reference)) with at
-least a `root`, then seed History with a Scan of everything already under
-Root:
+Seed History with a Scan. With no arguments it walks your home directory;
+give it one or more directories to walk those instead:
 
 ```sh
-cdd scan
+cdd scan                       # every git repository below ~
+cdd scan ~/Developer ~/work    # only below these
 ```
+
+A Project is any directory holding a `.git` directory or file (so
+worktrees and submodules count). The walk goes to any depth but stops at a
+repository, so repositories nested inside one are not listed, unless you
+name that repository to `cdd scan` itself. It does not follow symlinks,
+skips hidden directories and anything matched by `exclude`, and passes over
+directories it cannot read. Run it again whenever you clone something new:
+it never overrides the date of a real Jump.
 
 ## Usage
 
 ```sh
 cdd            # open the Picker over History, ordered by recency
-cdd <query>    # open the Picker pre-filtered by query
+cdd <query>    # Jump straight there when exactly one Project matches, else
+               # open the Picker pre-filtered by query
 ```
+
+A query matches a Project straight away when it is the Project's name
+(`cdd cdd`), a trailing part of its path (`cdd tools/cdd`), or its whole
+path. The Picker lists only Projects in History, and drops any whose `.git`
+has since gone.
 
 ### Keys
 
@@ -96,63 +112,63 @@ Vim key map (`keys.vim = true`): the list is focused on open.
 
 ### Layout
 
-The Picker ships two Layouts, selected with `picker.layout`.
-
-The **Grouped Layout** (`grouped`, the default) groups Projects under Kind
-headers, marks the selected row with a caret, and puts the filter line
-above the list.
-
-The **List Layout** (`list`) is a flat fzf-style run: no Kind headers,
-Projects in History order with never-visited ones last, `kind/` muted
-before each Project name, the filter prompt below the list, and a `▌` bar
-plus a background highlight on the selected row.
-
-Both draw the same preview pane, use the same keys, status glyphs and
-colours, and degrade the same way on a narrow terminal.
+The Picker draws the **List Layout**: a flat fzf-style run of Projects in
+History order, each Project's parent directory muted before its name (`~`
+standing in for your home directory, and trimmed from the start on a narrow
+terminal), the filter prompt below the list, and a `▌` bar plus a
+background highlight on the selected row. The filter matches the parent
+directory as well as the name.
 
 ## Config reference
 
 `cdd` reads `config.toml` from `$XDG_CONFIG_HOME/cdd/config.toml`, falling
-back to `~/.config/cdd/config.toml` when `XDG_CONFIG_HOME` is unset.
+back to `~/.config/cdd/config.toml` when `XDG_CONFIG_HOME` is unset. The
+file is optional, and so is every key in it; these are the defaults:
 
 ```toml
-root = "~/Developer"      # required, no default
-exclude = []              # paths relative to Root, glob-matched
+exclude = []
 include_hidden = false
 [history]
-max_visits = 1000         # must be >= 1
+max_visits = 1000
 [keys]
 vim = false
 [picker]
-layout = "grouped"        # or "list" for the flat fzf-style layout
+layout = "list"
 ```
 
-- `root` (required): the top-level directory whose Kinds are searched for
-  Projects. A leading `~` is expanded to the user's home directory;
-  `$VAR` is left as-is.
-- `exclude`: paths relative to Root, matched with `path.Match` semantics,
-  that are skipped when discovering Kinds and Projects.
-- `include_hidden`: when `false` (the default), hidden directories are
-  excluded at both Kind and Project level.
+- `exclude`: glob patterns (`filepath.Match` semantics) for directories
+  `cdd scan` skips, along with everything below them. A pattern containing
+  `/` is matched against the directory's absolute path, any other against
+  its name alone, as in `.gitignore`: `["node_modules", "~/go/pkg/*"]`. A
+  leading `~` is expanded to your home directory; `$VAR` is left as-is.
+- `include_hidden`: when `false` (the default), `cdd scan` skips hidden
+  directories.
 - `[history].max_visits`: the maximum number of Visits kept in History.
   Must be at least 1; defaults to `1000`.
 - `[keys].vim`: when `true`, the Picker opens with the list focused and
   uses the vim key map described above. Defaults to `false`, the default
   key map.
-- `[picker].layout`: which Layout the Picker draws, `"grouped"` (the
-  default) or `"list"`, as described above. Any other value is a config
-  error.
+- `[picker].layout`: which Layout the Picker draws. `"list"`, described
+  above, is the default and, for now, the only one. Any other value is a
+  config error.
+
+Upgrading from v0.2: `root` and the `"grouped"` layout are gone. Delete
+them from `config.toml` (cdd names the offending line), then run `cdd scan`
+to rebuild History, since the old entries were stored relative to Root and
+are ignored.
 
 History is stored at `$XDG_DATA_HOME/cdd/history`, falling back to
 `~/.local/share/cdd/history` when `XDG_DATA_HOME` is unset.
 
 ## How it works
 
-A Scan sweeps Root once and seeds History with a Visit per discovered
-Project, dated from evidence found inside the Project itself. The Picker
-lists Projects drawn from History, most recently visited first, and lets
-you choose one; choosing a Project records a new Visit and hands its path
-to the Wrapper, which turns it into a Jump in your shell.
+A Scan walks the directories it is given once and seeds History with a
+Visit per git repository it finds, dated from the repository's last commit
+(or the directory's mtime, before the first commit). The Picker lists
+Projects drawn from History alone, most recently visited first, so opening
+it never walks the disk; choosing a Project records a new Visit and hands
+its path to the Wrapper, which turns it into a Jump in your shell. See
+[ADR 0001](docs/adr/0001-projects-are-git-repos-found-by-scan.md) for why.
 
 ## Contributing
 
