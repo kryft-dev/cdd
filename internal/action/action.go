@@ -70,6 +70,7 @@ var builtins = []Action{
 	{Name: "editor", Key: "ctrl+e", Run: "${VISUAL:-${EDITOR:-vi}} {path}"},
 	{Name: "remote", Key: "ctrl+g", Run: Opener(runtime.GOOS) + " {remote}", Detach: true},
 	{Name: "copy", Key: "ctrl+y", Internal: InternalCopy},
+	{Name: "forget", Key: "ctrl+d", Internal: InternalForget},
 }
 
 // Builtins returns a copy of the built-in Actions.
