@@ -161,7 +161,8 @@ Key names are those the Picker recognises: `ctrl+x`, `alt+x`, `enter`,
 (`ctrl+n` bound means `↓` is the only way down), but `esc` and `ctrl+c`
 can never be bound. A plain printable key (`a`, `?`) would steal typing, so
 it is an error unless `keys.vim = true`, where it applies in list focus.
-Two Actions on one key is an error, and `key = ""` leaves an Action
+Two Actions you bind to one key is an error (a built-in's default key just
+yields to yours), and `key = ""` leaves an Action
 unbound. Each of these is reported with the line it is on.
 
 An `[actions.<name>]` table whose name is a built-in Action overrides only
@@ -179,9 +180,12 @@ run    = "code {path}"
 detach = true
 ```
 
-`jump` holds `enter` until you move it, so giving `enter` to another Action
-means moving `jump` or setting `[actions.jump] key = ""`, which leaves it
-unbound. That is allowed; `jump` just has no key.
+A key you set wins over a built-in that holds it by default: `jump` holds
+`enter` until you give `enter` to another Action, which leaves `jump`
+unbound, as if you had set `[actions.jump] key = ""`. So remapping `enter`
+alone is enough; there is no need to move `jump` first. The same goes for
+rebinding one built-in onto another built-in's key. Two Actions you bind to
+the same key are still an error.
 
 ### Layout
 
