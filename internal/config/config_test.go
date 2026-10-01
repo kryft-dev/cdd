@@ -41,6 +41,9 @@ func assertDefaults(t *testing.T, cfg config.Config) {
 	if cfg.Picker.Layout != "list" {
 		t.Errorf("Picker.Layout = %q, want %q", cfg.Picker.Layout, "list")
 	}
+	if !cfg.Picker.Hints {
+		t.Errorf("Picker.Hints = false, want true")
+	}
 }
 
 func TestLoadFromMissingFileIsDefaults(t *testing.T) {
@@ -68,6 +71,7 @@ max_visits = 42
 vim = true
 [picker]
 layout = "list"
+hints = false
 `
 	cfg, err := config.LoadFrom(writeConfig(t, body))
 	if err != nil {
@@ -88,6 +92,9 @@ layout = "list"
 	}
 	if cfg.Picker.Layout != "list" {
 		t.Errorf("Picker.Layout = %q, want %q", cfg.Picker.Layout, "list")
+	}
+	if cfg.Picker.Hints {
+		t.Errorf("Picker.Hints = true, want false")
 	}
 }
 
@@ -180,5 +187,17 @@ func TestLoadFromGroupedLayoutRejectedAsInvalid(t *testing.T) {
 	}
 	if strings.Contains(err.Error(), "removed") {
 		t.Errorf("error = %q, want no removal message", err.Error())
+	}
+}
+
+func TestLoadFromPickerHintsMustBeBoolean(t *testing.T) {
+	_, err := config.LoadFrom(writeConfig(t, "[picker]\nhints = \"no\"\n"))
+	if err == nil {
+		t.Fatal(`LoadFrom hints = "no": got nil error, want error`)
+	}
+	for _, want := range []string{"Hints", "line 2"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error = %q, want it to contain %q", err.Error(), want)
+		}
 	}
 }

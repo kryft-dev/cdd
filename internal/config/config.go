@@ -69,6 +69,11 @@ type Picker struct {
 	// and only layout today, is a flat fzf-style list with the filter
 	// prompt below it and a background-highlighted selected row.
 	Layout string `toml:"layout"`
+
+	// Hints, when true (the default), draws the key-hint line under the
+	// list, built from the bound Actions. When false the line shows only
+	// the match count and any message.
+	Hints bool `toml:"hints"`
 }
 
 // pickerLayouts are the values Picker.Layout accepts, in the order the
@@ -83,7 +88,7 @@ func defaultConfig() Config {
 		IncludeHidden: false,
 		History:       History{MaxVisits: 1000},
 		Keys:          Keys{Vim: false},
-		Picker:        Picker{Layout: "list"},
+		Picker:        Picker{Layout: "list", Hints: true},
 	}
 }
 
