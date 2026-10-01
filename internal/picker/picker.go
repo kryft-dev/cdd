@@ -102,6 +102,12 @@ type Options struct {
 	// set. It reports false when no clipboard program is available, and the
 	// Picker falls back to the OSC 52 escape. The zero value is action.Copy.
 	Copy func(text string) (bool, error)
+
+	// Forget records a Project as Forgotten, for the Action with Internal
+	// InternalForget once the user confirms. The Picker then drops the row.
+	// When it fails, the Picker shows why and keeps the row. With no
+	// Forget, the Action asks nothing and does nothing.
+	Forget func(path string) error
 }
 
 // concurrency bounds how many StatusFunc calls run at once, so a large

@@ -44,6 +44,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // the same name.
 func (m Model) updateKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	m.message, m.messageOK = "", false
+	if m.confirm != nil {
+		return m.updateKeyConfirm(msg)
+	}
 	if m.help {
 		return m.updateKeyHelp(msg)
 	}
@@ -165,8 +168,11 @@ func (m Model) runAction(a action.Action) (tea.Model, tea.Cmd) {
 	}
 	row := rows[m.cursor].row
 
-	if a.Internal == action.InternalCopy {
+	switch a.Internal {
+	case action.InternalCopy:
 		return m.copyPath(a, row.Project.Path)
+	case action.InternalForget:
+		return m.askForget(row)
 	}
 	if !a.Detach {
 		m.chosen = true

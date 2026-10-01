@@ -63,6 +63,8 @@ func describe(a action.Action) string {
 	switch {
 	case a.Internal == action.InternalCopy:
 		return "copies the path"
+	case a.Internal == action.InternalForget:
+		return "forgets the Project"
 	case a.Run != "":
 		return a.Run
 	case a.Jump:
