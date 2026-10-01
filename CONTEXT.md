@@ -32,6 +32,10 @@ _Avoid_: Import, index, crawl, rebuild
 The interactive screen that lists Projects and lets the user choose one to Jump to.
 _Avoid_: Menu, list, finder, selector
 
+**Query**:
+The text that filters the Picker, typed or given to `cdd`. Split on spaces into words: the last word matches a Project's name and every earlier word matches, in order, within its parent directory; a query with no space matches the whole shown path. Each word matches fuzzily and tolerates a typo or two by its length.
+_Avoid_: Search, filter string, pattern
+
 **Layout**:
 One of the arrangements in which the Picker draws Projects. The List Layout, the only one today, draws them in one flat run.
 _Avoid_: View, mode, style, theme, skin
