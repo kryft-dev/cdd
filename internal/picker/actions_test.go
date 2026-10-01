@@ -9,6 +9,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/kryft-dev/cdd/internal/action"
+	"github.com/kryft-dev/cdd/internal/git"
 	"github.com/kryft-dev/cdd/internal/picker"
 )
 
@@ -218,5 +219,18 @@ func TestModel_Action_NoRowsIsANoOp(t *testing.T) {
 	_, cmd := press(m, ctrlV)
 	if len(r.started) != 0 || cmd != nil {
 		t.Errorf("started = %v, Cmd = %v, want nothing", r.started, cmd != nil)
+	}
+}
+
+func TestModel_Action_RemoteWithoutOneShowsTheErrorAndStaysOpen(t *testing.T) {
+	r := &fakeRunner{err: git.ErrNoRemote}
+	m := actionModel(r, false, action.Action{Name: "remote", Key: "ctrl+g", Run: "open {remote}", Detach: true})
+
+	m, cmd := press(m, tea.KeyPressMsg{Code: 'g', Mod: tea.ModCtrl})
+	if v := plain(m.View().Content); !strings.Contains(v, "remote: no git remote") {
+		t.Errorf("View lacks the error:\n%s", v)
+	}
+	if _, chosen := m.Chosen(); chosen || cmd != nil {
+		t.Errorf("the Picker left (chosen = %v, Cmd = %v), want it open", chosen, cmd != nil)
 	}
 }
