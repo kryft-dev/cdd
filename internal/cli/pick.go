@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/kryft-dev/cdd/internal/action"
 	"github.com/kryft-dev/cdd/internal/config"
 	"github.com/kryft-dev/cdd/internal/history"
 	"github.com/kryft-dev/cdd/internal/jump"
@@ -29,9 +30,12 @@ func newPickCmd() *cobra.Command {
 // pickRunE implements both "cdd pick" and the bare "cdd" root command:
 // load config, open History at its default path, resolve a Project via
 // jump.Resolve and picker.Run, and print the chosen absolute path plus a newline to stdout and nothing else.
+// An Action that does not Jump prints nothing, so the Wrapper has nothing
+// to cd to.
 //
 // A cancelled Picker returns jump.ErrCancelled, which Run reports as exit
-// 130 with no message. Any other error is reported by Run as exit 1 with
+// 130 with no message, and an Action's non-zero exit status is passed on
+// through jump.ExitError. Any other error is reported by Run as exit 1 with
 // the error's message on stderr.
 func pickRunE(cmd *cobra.Command, _ []string) error {
 	cfg, err := config.Load()
@@ -49,9 +53,13 @@ func pickRunE(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	abs, err := jump.Resolve(cmd.Context(), cfg, hist, picker.Run)
+	abs, err := jump.Resolve(cmd.Context(), cfg, hist, picker.Run, action.ExecRunner{})
 	if err != nil {
 		return err
+	}
+
+	if abs == "" {
+		return nil // an Action ran and does not Jump
 	}
 
 	out := cmd.OutOrStdout()

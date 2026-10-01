@@ -22,7 +22,8 @@ func Execute() int {
 
 // Run parses args against the cdd command tree, writing to stdout and
 // stderr, and returns the process exit code: 0 on success, 130 silently on
-// a cancelled Picker (jump.ErrCancelled), 1 with a stderr message on any
+// a cancelled Picker (jump.ErrCancelled), the exit status of an Action's
+// command that failed (jump.ExitError), 1 with a stderr message on any
 // other error, 2 with a stderr message on a usage error.
 //
 // Run is exported, rather than Execute alone, so tests can drive the CLI
@@ -42,6 +43,10 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	}
 	if errors.Is(err, jump.ErrCancelled) {
 		return 130
+	}
+	var exit *jump.ExitError
+	if errors.As(err, &exit) {
+		return exit.Code
 	}
 
 	_, _ = fmt.Fprintln(stderr, err)
