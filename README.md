@@ -166,9 +166,26 @@ yields to yours, and `key = ""` leaves an Action unbound. Each of these is
 reported with the line it is on.
 
 An `[actions.<name>]` table whose name is a built-in Action overrides only
-the fields it sets. The only built-in Action is `jump`, which Jumps to the
-Project and is bound to `enter`, in both key maps and in the vim filter
-focus. Rebind it, or give `enter` to another Action:
+the fields it sets. The built-in Actions are:
+
+| Action | Key | Runs |
+| --- | --- | --- |
+| `jump` | `enter` | Jumps to the Project, in both key maps and in the vim filter focus |
+| `files` | `ctrl+o` | `xdg-open {path}` (`open {path}` on macOS), detached |
+| `editor` | `ctrl+e` | `${VISUAL:-${EDITOR:-vi}} {path}`, on your terminal |
+
+`editor` reads `$VISUAL`, else `$EDITOR`, else `vi`, each time it runs.
+Override `run` to pick a program, or set `key = ""` to unbind either:
+
+```toml
+[actions.editor]
+run = "hx {path}"        # replaces the built-in command
+
+[actions.files]
+key = ""                 # no file manager binding
+```
+
+Rebind `jump`, or give `enter` to another Action:
 
 ```toml
 [actions.jump]
@@ -226,8 +243,8 @@ layout = "list"
   uses the vim key map described above. Defaults to `false`, the default
   key map.
 - `[actions.<name>]`: an Action, with `key`, `run`, `jump` and `detach`;
-  see [Actions](#actions). Not in the defaults above, since there is no
-  Action unless you define one.
+  see [Actions](#actions). Not in the defaults above; `jump`, `files` and
+  `editor` exist unless you override them.
 - `[picker].layout`: which Layout the Picker draws. `"list"`, described
   above, is the default and, for now, the only one. Any other value is a
   config error.
