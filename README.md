@@ -168,7 +168,8 @@ the hints, leaving the count and messages.
 ### Actions
 
 An **Action** is a named command bound to a key and run on the selected
-Project. Define one in `config.toml`:
+Project. Define one in `config.toml` (`cdd config init` writes a starting
+file with examples):
 
 ```toml
 [actions.code]
@@ -285,7 +286,13 @@ directory as well as the name (see [Query syntax](#query-syntax)).
 
 `cdd` reads `config.toml` from `$XDG_CONFIG_HOME/cdd/config.toml`, falling
 back to `~/.config/cdd/config.toml` when `XDG_CONFIG_HOME` is unset. The
-file is optional, and so is every key in it; these are the defaults:
+file is optional, and so is every key in it. `cdd config init` writes a
+commented example with every key and some Action recipes (it refuses to
+replace an existing file unless you pass `--force`), `cdd config path`
+prints where the file lives, and `cdd config edit` opens it in `$VISUAL`,
+else `$EDITOR`, else `vi`, running `init` first if there is none. The same
+file ships as `config.example.toml` in each release archive. These are the
+defaults:
 
 ```toml
 exclude = []
