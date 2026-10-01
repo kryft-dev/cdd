@@ -94,6 +94,8 @@ cdd forget ~/old  # hide a Project for good, git repository or not
 cdd forget        # the current directory
 ```
 
+In the Picker, `ctrl+d` forgets the selected Project after a `y/n` confirm.
+
 An added directory is listed even with no Visits (after the visited ones)
 and drops out once the directory is gone. A forgotten Project is never
 listed, and `cdd scan` does not bring it back. `cdd add` on a forgotten
@@ -210,6 +212,14 @@ the fields it sets. The built-in Actions are:
 | `editor` | `ctrl+e` | `${VISUAL:-${EDITOR:-vi}} {path}`, on your terminal |
 | `remote` | `ctrl+g` | `xdg-open {remote}` (`open {remote}` on macOS), detached |
 | `copy` | `ctrl+y` | Copies the Project's path to the clipboard, and says "copied" on the last line |
+| `forget` | `ctrl+d` | Forgets the Project, as `cdd forget` does, once you confirm |
+
+`forget` asks `forget <name>? y/n` on the last line. `y` forgets the Project
+and drops its row, leaving the cursor on the row that took its place; any
+other key cancels, and is not typed into the filter. If cdd cannot write the
+`projects` file, the reason shows in red and the row stays. `cdd add`
+brings a forgotten Project back. Setting `run` or `jump` replaces it with an
+ordinary command.
 
 `copy` uses the first of `wl-copy` (when `WAYLAND_DISPLAY` is set), `xclip`,
 `xsel` and `pbcopy` it finds on `PATH`. With none of them it sends the OSC 52
@@ -303,7 +313,7 @@ hints = true
   key map.
 - `[actions.<name>]`: an Action, with `key`, `run`, `jump` and `detach`;
   see [Actions](#actions). Not in the defaults above; `jump`, `files`,
-  `editor`, `remote` and `copy` exist unless you override them.
+  `editor`, `remote`, `copy` and `forget` exist unless you override them.
 - `[picker].layout`: which Layout the Picker draws. `"list"`, described
   above, is the default and, for now, the only one. Any other value is a
   config error.
