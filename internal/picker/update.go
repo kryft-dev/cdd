@@ -44,6 +44,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // the same name.
 func (m Model) updateKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	m.message, m.messageOK = "", false
+	if m.help {
+		return m.updateKeyHelp(msg)
+	}
 	if a, ok := m.boundAction(msg.String()); ok {
 		return m.runAction(a)
 	}
@@ -119,7 +122,23 @@ func (m Model) updateKeyVim(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "f", "/":
 		m.focus = focusFilter
 		return m, nil
+	case "?":
+		m.help = true
+		return m, nil
 	case "esc", "q", "ctrl+c":
+		return m.cancel()
+	}
+	return m, nil
+}
+
+// updateKeyHelp handles a key press while the vim help overlay is open: ?,
+// esc or q close it, ctrl+c still cancels, and nothing else does anything,
+// so an Action key cannot fire unseen behind the overlay.
+func (m Model) updateKeyHelp(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "?", "esc", "q":
+		m.help = false
+	case "ctrl+c":
 		return m.cancel()
 	}
 	return m, nil
