@@ -121,6 +121,51 @@ func TestMerge_UserKeyDisplacesABuiltinHoldingIt(t *testing.T) {
 	}
 }
 
+func TestMerge_UserRebindingABuiltinDisplacesAnotherBuiltin(t *testing.T) {
+	withBuiltins(t,
+		Action{Name: "jump", Key: "enter", Jump: true},
+		Action{Name: "remote", Key: "ctrl+r", Run: "open-remote {path}"},
+	)
+
+	got, err := Merge(map[string]Override{"remote": {Key: str("enter")}}, false)
+	if err != nil {
+		t.Fatalf("Merge: %v", err)
+	}
+	keys := map[string]string{}
+	for _, a := range got {
+		keys[a.Name] = a.Key
+	}
+	if keys["remote"] != "enter" || keys["jump"] != "" {
+		t.Errorf("keys = %v, want remote on enter and jump unbound", keys)
+	}
+}
+
+func TestMerge_UserRebindingAnEarlierBuiltinDisplacesALaterOne(t *testing.T) {
+	withBuiltins(t,
+		Action{Name: "a", Key: "ctrl+a", Run: "x"},
+		Action{Name: "b", Key: "ctrl+b", Run: "y"},
+	)
+
+	got, err := Merge(map[string]Override{"a": {Key: str("ctrl+b")}}, false)
+	if err != nil {
+		t.Fatalf("Merge: %v", err)
+	}
+	if got[0].Key != "ctrl+b" || got[1].Key != "" {
+		t.Errorf("keys = %q, %q, want a on ctrl+b and b unbound", got[0].Key, got[1].Key)
+	}
+}
+
+func TestMerge_TwoUserActionsOnEnterIsAnError(t *testing.T) {
+	_, err := Merge(map[string]Override{
+		"code": {Key: str("enter"), Run: str("code {path}")},
+		"edit": {Key: str("enter"), Run: str("vi {path}")},
+	}, false)
+	var ae *Error
+	if !errors.As(err, &ae) || ae.Name != "edit" || ae.Field != "key" {
+		t.Fatalf("err = %v, want an *Error for edit's key", err)
+	}
+}
+
 func TestMerge_PrintableKeyAllowedWithVim(t *testing.T) {
 	withBuiltins(t)
 	got, err := Merge(map[string]Override{"a": {Key: str("?"), Run: str("x")}}, true)
