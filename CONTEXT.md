@@ -41,7 +41,7 @@ One of the arrangements in which the Picker draws Projects. The List Layout, the
 _Avoid_: View, mode, style, theme, skin
 
 **Action**:
-A named command bound to a key in the Picker and run on the selected Project. Built-in Actions can be overridden by name, field by field, and the user can define others in `config.toml`. It may Jump once its command exits, or detach, running while the Picker stays open.
+A named command bound to a key in the Picker and run on the selected Project. Jumping on Enter is the built-in `jump` Action. Built-in Actions can be overridden by name, field by field, and the user can define others in `config.toml`. It may Jump once its command exits, or detach, running while the Picker stays open.
 _Avoid_: Command, binding, hotkey, shortcut
 
 **Wrapper**:

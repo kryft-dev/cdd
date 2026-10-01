@@ -44,13 +44,14 @@ type Row struct {
 	Visits int
 }
 
-// Choice is what the user chose in the Picker: a Project and, unless it is
-// a plain Jump, the Action to run on it. A detached Action never ends up
-// here, since the Picker runs it and stays open.
+// Choice is what the user chose in the Picker: a Project and the Action to
+// run on it, the built-in jump for a plain Enter. A detached Action never
+// ends up here, since the Picker runs it and stays open.
 type Choice struct {
 	Row Row
 
-	// Action is the Action to run on the Row, or nil for a plain Jump.
+	// Action is the Action to run on the Row. The Picker always sets it; a
+	// nil one is taken as a plain Jump.
 	Action *action.Action
 }
 
