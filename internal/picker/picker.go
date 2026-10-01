@@ -92,6 +92,11 @@ type Options struct {
 	// Runner starts the detached Actions, which leave the Picker open. The
 	// zero value is action.ExecRunner.
 	Runner action.Runner
+
+	// Copy puts a Project's path on the clipboard for the Action with Copy
+	// set. It reports false when no clipboard program is available, and the
+	// Picker falls back to the OSC 52 escape. The zero value is action.Copy.
+	Copy func(text string) (bool, error)
 }
 
 // concurrency bounds how many StatusFunc calls run at once, so a large
