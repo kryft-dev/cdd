@@ -39,7 +39,7 @@ func (m Model) listFrame(t theme, now time.Time) string {
 // listBody renders the list pane: one line per visible row, windowed to
 // exactly Layout.ListHeight lines and scrolled to keep the cursor's row on
 // screen.
-func (m Model) listBody(t theme, rows []match, lay Layout, now time.Time) string {
+func (m Model) listBody(t theme, rows []hit, lay Layout, now time.Time) string {
 	lines := make([]string, 0, max(len(rows), 1))
 	for i, mt := range rows {
 		lines = append(lines, m.listRowView(t, mt, i == m.cursor, lay, now))
@@ -55,7 +55,7 @@ func (m Model) listBody(t theme, rows []match, lay Layout, now time.Time) string
 // out to Layout.ListWidth. Every segment, padding included, is rendered
 // through base, so the selected row's background highlight runs unbroken
 // to the edge of the pane.
-func (m Model) listRowView(t theme, mt match, selected bool, lay Layout, now time.Time) string {
+func (m Model) listRowView(t theme, mt hit, selected bool, lay Layout, now time.Time) string {
 	base := lipgloss.NewStyle()
 	nameStyle := base
 	bar := base.Render(" ")
@@ -92,7 +92,7 @@ const listNameFloor = 4
 // is too wide, and the directory, from its start, once the name is down to
 // listNameFloor. Each segment keeps its own style, so a long directory
 // never mutes the name with it.
-func (m Model) listNameField(t theme, mt match, lay Layout, base, dirStyle, nameStyle lipgloss.Style) string {
+func (m Model) listNameField(t theme, mt hit, lay Layout, base, dirStyle, nameStyle lipgloss.Style) string {
 	p := mt.row.Project
 	dir, name := p.Dir, p.Name
 

@@ -62,7 +62,7 @@ func (m Model) filterLine(t theme) string {
 }
 
 // previewView renders the right-hand preview box for the selected row.
-func (m Model) previewView(t theme, rows []match, lay Layout, now time.Time) string {
+func (m Model) previewView(t theme, rows []hit, lay Layout, now time.Time) string {
 	var body strings.Builder
 	if m.cursor >= 0 && m.cursor < len(rows) {
 		p := rows[m.cursor].row.Project
