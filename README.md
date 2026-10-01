@@ -128,6 +128,45 @@ Vim key map (`keys.vim = true`): the list is focused on open.
 | `esc` / `q` | cancel |
 | `enter` | Jump to the selected Project |
 
+### Actions
+
+An **Action** is a named command bound to a key and run on the selected
+Project. Define one in `config.toml`:
+
+```toml
+[actions.code]
+key    = "ctrl+v"
+run    = "code {path}"   # {path} is the shell-quoted absolute path
+detach = true            # start without waiting; the Picker stays open
+
+[actions.lazygit]
+key  = "ctrl+l"
+run  = "lazygit"         # runs with the Project as its working directory
+```
+
+- `run` is handed to `sh -c` with the Project as the working directory and
+  `$CDD_PATH` set to its path. Use `{path}`, not `$path`, which zsh ties to
+  `$PATH`.
+- By default the Picker quits and the command gets your terminal for stdin,
+  stdout and stderr, so a TUI like `lazygit` works. `cdd` waits and exits
+  with its status. Nothing is Jumped to afterwards, unless `jump = true`,
+  which Jumps to the Project once the command exits successfully.
+- `detach = true` starts the command in its own session without waiting,
+  discarding its output, and the Picker stays open. If it cannot be
+  started, the reason shows on the Picker's last line until the next key.
+- Every run records a Visit to the Project.
+
+Key names are those the Picker recognises: `ctrl+x`, `alt+x`, `enter`,
+`f1`, and so on. A binding takes the key away from its navigation use
+(`ctrl+n` bound means `↓` is the only way down), but `esc` and `ctrl+c`
+can never be bound. A plain printable key (`a`, `?`) would steal typing, so
+it is an error unless `keys.vim = true`, where it applies in list focus.
+Two Actions on one key is an error, and `key = ""` leaves an Action
+unbound. Each of these is reported with the line it is on.
+
+An `[actions.<name>]` table whose name is a built-in Action overrides only
+the fields it sets. There are no built-in Actions yet.
+
 ### Layout
 
 The Picker draws the **List Layout**: a flat fzf-style run of Projects in
@@ -166,6 +205,9 @@ layout = "list"
 - `[keys].vim`: when `true`, the Picker opens with the list focused and
   uses the vim key map described above. Defaults to `false`, the default
   key map.
+- `[actions.<name>]`: an Action, with `key`, `run`, `jump` and `detach`;
+  see [Actions](#actions). Not in the defaults above, since there is no
+  Action unless you define one.
 - `[picker].layout`: which Layout the Picker draws. `"list"`, described
   above, is the default and, for now, the only one. Any other value is a
   config error.

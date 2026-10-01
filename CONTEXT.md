@@ -13,7 +13,7 @@ Changing the shell's working directory to a chosen Project.
 _Avoid_: cd, navigate, switch, open, go to
 
 **Visit**:
-A single recorded Jump to a Project, or an entry seeded for a Project by a Scan. Changing directory by other means is not tracked.
+A single recorded Jump to a Project, or Action run on one, or an entry seeded for a Project by a Scan. Changing directory by other means is not tracked.
 _Avoid_: Access, hit, entry, usage
 
 **Stale Visit**:
@@ -39,6 +39,10 @@ _Avoid_: Search, filter string, pattern
 **Layout**:
 One of the arrangements in which the Picker draws Projects. The List Layout, the only one today, draws them in one flat run.
 _Avoid_: View, mode, style, theme, skin
+
+**Action**:
+A named command bound to a key in the Picker and run on the selected Project. Built-in Actions can be overridden by name, field by field, and the user can define others in `config.toml`. It may Jump once its command exits, or detach, running while the Picker stays open.
+_Avoid_: Command, binding, hotkey, shortcut
 
 **Wrapper**:
 The shell function installed into the user's shell that turns a Project chosen in the Picker into a Jump.
