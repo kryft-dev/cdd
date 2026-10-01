@@ -13,6 +13,7 @@ import (
 	"github.com/kryft-dev/cdd/internal/history"
 	"github.com/kryft-dev/cdd/internal/jump"
 	"github.com/kryft-dev/cdd/internal/picker"
+	"github.com/kryft-dev/cdd/internal/project"
 )
 
 // mkProjects creates each rel path under a fresh root as a Project (a
@@ -58,6 +59,13 @@ func newHistory(t *testing.T) *history.History {
 	return h
 }
 
+// newStore opens an empty project Store in a fresh temp directory.
+func newStore(t *testing.T) *project.Store {
+	t.Helper()
+
+	return project.OpenStore(filepath.Join(t.TempDir(), "projects"))
+}
+
 // TestResolve_AlwaysOpensPickerWithEmptyQuery checks that the Picker opens
 // with nothing typed, even when History holds a single Project, and that
 // the chosen Project is returned and Recorded.
@@ -68,7 +76,7 @@ func TestResolve_AlwaysOpensPickerWithEmptyQuery(t *testing.T) {
 
 	var rows []picker.Row
 	var opts picker.Options
-	got, err := jump.Resolve(context.Background(), cfg, hist, capturePick(&rows, &opts, want), &fakeRunner{})
+	got, err := jump.Resolve(context.Background(), cfg, hist, newStore(t), capturePick(&rows, &opts, want), &fakeRunner{})
 	if err != nil {
 		t.Fatalf("Resolve: unexpected error: %v", err)
 	}
@@ -100,7 +108,7 @@ func TestResolve_RowsComeFromHistoryNewestFirst(t *testing.T) {
 
 	var rows []picker.Row
 	var opts picker.Options
-	_, _ = jump.Resolve(context.Background(), cfg, hist, capturePick(&rows, &opts, ""), &fakeRunner{})
+	_, _ = jump.Resolve(context.Background(), cfg, hist, newStore(t), capturePick(&rows, &opts, ""), &fakeRunner{})
 
 	var got []string
 	for _, r := range rows {
@@ -121,7 +129,7 @@ func TestResolve_StaleVisitGivesNoRow(t *testing.T) {
 
 	var rows []picker.Row
 	var opts picker.Options
-	_, _ = jump.Resolve(context.Background(), cfg, hist, capturePick(&rows, &opts, ""), &fakeRunner{})
+	_, _ = jump.Resolve(context.Background(), cfg, hist, newStore(t), capturePick(&rows, &opts, ""), &fakeRunner{})
 	if len(rows) != 1 {
 		t.Errorf("Picker got %d rows, want 1 (Stale Visit dropped)", len(rows))
 	}
@@ -137,7 +145,7 @@ func TestResolve_ForwardsPickerOptions(t *testing.T) {
 
 	var rows []picker.Row
 	var got picker.Options
-	if _, err := jump.Resolve(context.Background(), cfg, hist, capturePick(&rows, &got, filepath.Join(root, "tools", "cdd")), &fakeRunner{}); err != nil {
+	if _, err := jump.Resolve(context.Background(), cfg, hist, newStore(t), capturePick(&rows, &got, filepath.Join(root, "tools", "cdd")), &fakeRunner{}); err != nil {
 		t.Fatalf("Resolve: unexpected error: %v", err)
 	}
 
@@ -155,7 +163,7 @@ func TestResolve_CancelReturnsErrCancelled(t *testing.T) {
 
 	var rows []picker.Row
 	var opts picker.Options
-	_, err := jump.Resolve(context.Background(), cfg, hist, capturePick(&rows, &opts, ""), &fakeRunner{})
+	_, err := jump.Resolve(context.Background(), cfg, hist, newStore(t), capturePick(&rows, &opts, ""), &fakeRunner{})
 	if !errors.Is(err, jump.ErrCancelled) {
 		t.Fatalf("Resolve error = %v, want ErrCancelled", err)
 	}
@@ -168,7 +176,7 @@ func TestResolve_VanishedDirectoryErrors(t *testing.T) {
 	var rows []picker.Row
 	var opts picker.Options
 	gone := filepath.Join(root, "tools", "vanished")
-	if _, err := jump.Resolve(context.Background(), cfg, hist, capturePick(&rows, &opts, gone), &fakeRunner{}); err == nil {
+	if _, err := jump.Resolve(context.Background(), cfg, hist, newStore(t), capturePick(&rows, &opts, gone), &fakeRunner{}); err == nil {
 		t.Fatal("Resolve: want error for a chosen directory that no longer exists, got nil")
 	}
 }
@@ -192,7 +200,7 @@ func TestResolve_FailingHistoryWriteStillReturnsPath(t *testing.T) {
 	want := filepath.Join(root, "tools", "cdd")
 	var rows []picker.Row
 	var opts picker.Options
-	got, err := jump.Resolve(context.Background(), cfg, hist, capturePick(&rows, &opts, want), &fakeRunner{})
+	got, err := jump.Resolve(context.Background(), cfg, hist, newStore(t), capturePick(&rows, &opts, want), &fakeRunner{})
 	if err != nil {
 		t.Fatalf("Resolve: unexpected error despite a failing History write: %v", err)
 	}

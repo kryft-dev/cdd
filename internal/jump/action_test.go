@@ -58,7 +58,7 @@ func TestResolve_AttachedActionRunsOnTheTerminalAndRecordsAVisit(t *testing.T) {
 
 	run := &fakeRunner{}
 	var opts picker.Options
-	got, err := jump.Resolve(context.Background(), cfg, hist, pickWith(action.Action{Name: "lazygit", Run: "lazygit"}, path, &opts), run)
+	got, err := jump.Resolve(context.Background(), cfg, hist, newStore(t), pickWith(action.Action{Name: "lazygit", Run: "lazygit"}, path, &opts), run)
 
 	if err != nil || got != "" {
 		t.Errorf("Resolve = %q, %v, want no path and no error", got, err)
@@ -78,7 +78,7 @@ func TestResolve_JumpActionReturnsThePathAfterTheCommand(t *testing.T) {
 
 	run := &fakeRunner{}
 	var opts picker.Options
-	got, err := jump.Resolve(context.Background(), cfg, hist, pickWith(action.Action{Name: "fmt", Run: "gofmt", Jump: true}, path, &opts), run)
+	got, err := jump.Resolve(context.Background(), cfg, hist, newStore(t), pickWith(action.Action{Name: "fmt", Run: "gofmt", Jump: true}, path, &opts), run)
 
 	if err != nil || got != path {
 		t.Errorf("Resolve = %q, %v, want %q", got, err, path)
@@ -95,7 +95,7 @@ func TestResolve_ActionWithoutACommandOnlyJumps(t *testing.T) {
 
 	run := &fakeRunner{}
 	var opts picker.Options
-	got, err := jump.Resolve(context.Background(), cfg, hist, pickWith(action.Action{Name: "jump", Jump: true}, path, &opts), run)
+	got, err := jump.Resolve(context.Background(), cfg, hist, newStore(t), pickWith(action.Action{Name: "jump", Jump: true}, path, &opts), run)
 
 	if err != nil || got != path || len(run.ran) != 0 {
 		t.Errorf("Resolve = %q, %v, ran %v, want the path and no command", got, err, run.ran)
@@ -108,7 +108,7 @@ func TestResolve_FailingCommandReturnsItsExitStatusAndNoPath(t *testing.T) {
 	path := filepath.Join(root, "tools", "cdd")
 
 	var opts picker.Options
-	got, err := jump.Resolve(context.Background(), cfg, hist, pickWith(action.Action{Name: "x", Run: "x", Jump: true}, path, &opts), &fakeRunner{code: 3})
+	got, err := jump.Resolve(context.Background(), cfg, hist, newStore(t), pickWith(action.Action{Name: "x", Run: "x", Jump: true}, path, &opts), &fakeRunner{code: 3})
 
 	var exit *jump.ExitError
 	if !errors.As(err, &exit) || exit.Code != 3 || got != "" {
@@ -122,7 +122,7 @@ func TestResolve_CommandThatCannotRunIsAnError(t *testing.T) {
 	path := filepath.Join(root, "tools", "cdd")
 
 	var opts picker.Options
-	_, err := jump.Resolve(context.Background(), cfg, hist, pickWith(action.Action{Name: "x", Run: "x"}, path, &opts), &fakeRunner{runErr: errors.New("no tty")})
+	_, err := jump.Resolve(context.Background(), cfg, hist, newStore(t), pickWith(action.Action{Name: "x", Run: "x"}, path, &opts), &fakeRunner{runErr: errors.New("no tty")})
 
 	var exit *jump.ExitError
 	if err == nil || errors.As(err, &exit) {
@@ -138,7 +138,7 @@ func TestResolve_PickerGetsTheResolvedActionsAndARecordingRunner(t *testing.T) {
 
 	run := &fakeRunner{}
 	var opts picker.Options
-	if _, err := jump.Resolve(context.Background(), cfg, hist, pickWith(action.Action{Name: "jump", Jump: true}, path, &opts), run); err != nil {
+	if _, err := jump.Resolve(context.Background(), cfg, hist, newStore(t), pickWith(action.Action{Name: "jump", Jump: true}, path, &opts), run); err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
 	if len(opts.Actions) != 1 || opts.Actions[0].Name != "code" {
@@ -173,7 +173,7 @@ func TestResolve_PickerHidesHintsWhenConfigSaysSo(t *testing.T) {
 		cfg.Picker.Hints = hints
 
 		var opts picker.Options
-		if _, err := jump.Resolve(context.Background(), cfg, hist, pickWith(action.Action{Name: "jump", Jump: true}, path, &opts), &fakeRunner{}); err != nil {
+		if _, err := jump.Resolve(context.Background(), cfg, hist, newStore(t), pickWith(action.Action{Name: "jump", Jump: true}, path, &opts), &fakeRunner{}); err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
 		if opts.HideHints == hints {
