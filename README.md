@@ -127,6 +127,23 @@ Vim key map (`keys.vim = true`): the list is focused on open.
 | `esc` (filter) | return to the list, keeping the query |
 | `esc` / `q` | cancel |
 | `enter` | Jump to the selected Project (the `jump` Action) |
+| `?` | open an overlay of every key, including your Actions' (list focus), and `?`, `esc` or `q` to close it |
+
+### Key hints
+
+The last line of the Picker lists the keys of your Actions, e.g.
+`enter jump · ctrl+o files · ctrl+e editor · …`, with the match count at its
+right edge. Whatever holds `enter` comes first, then your own `[actions.*]`
+in the order `config.toml` declares them, then the built-ins; an Action with
+`key = ""` is not listed. A line too narrow for all of them drops whole hints
+from the end behind a `…`. A failure or confirmation (such as `copied`)
+replaces the hints until the next key press.
+
+With `keys.vim = true` the line also points to `?`, which opens an overlay of
+every key, navigation included, and `?`, `esc` or `q` closes it. An Action
+you bind to `?` takes the key from the overlay, and the default key map has
+no overlay, since `?` is typing there. Set `[picker] hints = false` to hide
+the hints, leaving the count and messages.
 
 ### Actions
 
@@ -251,6 +268,7 @@ max_visits = 1000
 vim = false
 [picker]
 layout = "list"
+hints = true
 ```
 
 - `exclude`: glob patterns (`filepath.Match` semantics) for directories
@@ -271,6 +289,8 @@ layout = "list"
 - `[picker].layout`: which Layout the Picker draws. `"list"`, described
   above, is the default and, for now, the only one. Any other value is a
   config error.
+- `[picker].hints`: when `true` (the default), the last line lists the keys
+  of your Actions; see [Key hints](#key-hints). `false` hides them.
 
 Upgrading from v0.2: `root` and the `"grouped"` layout are gone. Delete
 them from `config.toml` (cdd names the offending line), then run `cdd scan`
