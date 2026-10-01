@@ -173,9 +173,10 @@ the fields it sets. The built-in Actions are:
 | `jump` | `enter` | Jumps to the Project, in both key maps and in the vim filter focus |
 | `files` | `ctrl+o` | `xdg-open {path}` (`open {path}` on macOS), detached |
 | `editor` | `ctrl+e` | `${VISUAL:-${EDITOR:-vi}} {path}`, on your terminal |
+| `remote` | `ctrl+g` | `xdg-open {remote}` (`open {remote}` on macOS), detached |
 
 `editor` reads `$VISUAL`, else `$EDITOR`, else `vi`, each time it runs.
-Override `run` to pick a program, or set `key = ""` to unbind either:
+Override `run` to pick a program, or set `key = ""` to unbind any of them:
 
 ```toml
 [actions.editor]
@@ -183,6 +184,21 @@ run = "hx {path}"        # replaces the built-in command
 
 [actions.files]
 key = ""                 # no file manager binding
+```
+
+`{remote}` in a `run` stands for the shell-quoted home page URL of the
+Project's git remote: `origin`, else the first remote `git remote` lists,
+rewritten to its repository page, never the branch.
+`git@host:owner/repo.git` and `ssh://git@host:2222/owner/repo.git` both
+become `https://host/owner/repo`, and an `https://` URL loses its `.git`;
+GitLab subgroups (`owner/group/repo`) are kept. A Project with no remote, or
+that is not a git repository, cannot run an Action that uses `{remote}`: the
+Picker stays open and says so on its last line. Set `run` to use another
+command or browser:
+
+```toml
+[actions.remote]
+run = "firefox {remote}" # replaces the built-in command
 ```
 
 Rebind `jump`, or give `enter` to another Action:
@@ -243,8 +259,8 @@ layout = "list"
   uses the vim key map described above. Defaults to `false`, the default
   key map.
 - `[actions.<name>]`: an Action, with `key`, `run`, `jump` and `detach`;
-  see [Actions](#actions). Not in the defaults above; `jump`, `files` and
-  `editor` exist unless you override them.
+  see [Actions](#actions). Not in the defaults above; `jump`, `files`,
+  `editor` and `remote` exist unless you override them.
 - `[picker].layout`: which Layout the Picker draws. `"list"`, described
   above, is the default and, for now, the only one. Any other value is a
   config error.
