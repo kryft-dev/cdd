@@ -78,12 +78,31 @@ it never overrides the date of a real Jump.
 cdd            # open the Picker over History, ordered by recency
 cdd <query>    # Jump straight there when exactly one Project matches, else
                # open the Picker pre-filtered by query
+cdd baz br     # open the Picker on Projects named like "br" under a "baz" parent
 ```
 
 A query matches a Project straight away when it is the Project's name
 (`cdd cdd`), a trailing part of its path (`cdd tools/cdd`), or its whole
 path. The Picker lists only Projects in History, and drops any whose `.git`
 has since gone.
+
+### Query syntax
+
+| Query | Matches |
+| --- | --- |
+| `barbar` | the whole shown path, parent directory then name |
+| `baz br` | name like `br`, under a parent directory like `baz` |
+| `kryft tools cdd` | name like `cdd`, parent words in order (`~/kryft/tools/`) |
+| `baz ` | any Project under a parent like `baz` (trailing space) |
+| ` br` | names like `br` only (leading space) |
+| ` ` | everything, as if empty |
+
+Each word matches fuzzily, in order (`br` finds `barbar`), and survives a
+typo: one edit for words of 4–7 letters, two from 8 (`brabar` still finds
+`barbar`). Words of up to 3 letters must be exact. Typo matches rank below
+every exact one; equally good matches keep History order. Case is ignored
+unless the query has an uppercase letter. A query with a space never takes
+the straight-to-Jump shortcut.
 
 ### Keys
 
@@ -117,7 +136,7 @@ History order, each Project's parent directory muted before its name (`~`
 standing in for your home directory, and trimmed from the start on a narrow
 terminal), the filter prompt below the list, and a `▌` bar plus a
 background highlight on the selected row. The filter matches the parent
-directory as well as the name.
+directory as well as the name (see [Query syntax](#query-syntax)).
 
 ## Config reference
 
