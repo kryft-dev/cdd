@@ -6,7 +6,7 @@ repository below the directories you give it, at any depth.
 
 ## Demo
 
-<!-- Recorded with VHS against a throwaway home: demo/setup.sh && vhs demo/demo.tape -->
+<!-- Recorded with VHS v0.11.0 against stand-in projects in ~/Code and ~/Work: demo/setup.sh && vhs demo/demo.tape; demo/teardown.sh -->
 ![cdd demo](demo/demo.gif)
 
 ## Install
