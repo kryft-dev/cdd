@@ -8,6 +8,7 @@ import (
 
 	"github.com/kryft-dev/cdd/internal/config"
 	"github.com/kryft-dev/cdd/internal/history"
+	"github.com/kryft-dev/cdd/internal/project"
 	"github.com/kryft-dev/cdd/internal/scan"
 )
 
@@ -42,7 +43,12 @@ func newScanCmd() *cobra.Command {
 				return err
 			}
 
-			summary, err := scan.Run(cmd.Context(), dirs, cfg, hist)
+			storePath, err := project.StorePath()
+			if err != nil {
+				return fmt.Errorf("cdd: locate the projects file: %w", err)
+			}
+
+			summary, err := scan.Run(cmd.Context(), dirs, cfg, hist, project.OpenStore(storePath))
 			if err != nil {
 				return err
 			}

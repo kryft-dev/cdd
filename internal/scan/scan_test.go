@@ -11,6 +11,7 @@ import (
 	"github.com/kryft-dev/cdd/internal/config"
 	"github.com/kryft-dev/cdd/internal/git"
 	"github.com/kryft-dev/cdd/internal/history"
+	"github.com/kryft-dev/cdd/internal/project"
 	"github.com/kryft-dev/cdd/internal/scan"
 )
 
@@ -77,6 +78,13 @@ func newHistory(t *testing.T) *history.History {
 	return hist
 }
 
+// newStore opens an empty project Store in a fresh temp directory.
+func newStore(t *testing.T) *project.Store {
+	t.Helper()
+
+	return project.OpenStore(filepath.Join(t.TempDir(), "projects"))
+}
+
 func newConfig(exclude []string) config.Config {
 	return config.Config{Exclude: exclude}
 }
@@ -91,7 +99,7 @@ func TestRun_RepositorySeededFromCommitTime(t *testing.T) {
 	}
 
 	hist := newHistory(t)
-	summary, err := scan.Run(context.Background(), []string{root}, newConfig(nil), hist)
+	summary, err := scan.Run(context.Background(), []string{root}, newConfig(nil), hist, newStore(t))
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -127,7 +135,7 @@ func TestRun_RepositoryWithoutCommitSeededFromMtime(t *testing.T) {
 	}
 
 	hist := newHistory(t)
-	summary, err := scan.Run(context.Background(), []string{root}, newConfig(nil), hist)
+	summary, err := scan.Run(context.Background(), []string{root}, newConfig(nil), hist, newStore(t))
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -161,7 +169,7 @@ func TestRun_AlreadyJumpedProjectNotOverwritten(t *testing.T) {
 		t.Fatalf("Latest: %v", err)
 	}
 
-	summary, err := scan.Run(context.Background(), []string{root}, newConfig(nil), hist)
+	summary, err := scan.Run(context.Background(), []string{root}, newConfig(nil), hist, newStore(t))
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -185,11 +193,11 @@ func TestRun_SecondRunSeedsNothingNew(t *testing.T) {
 	hist := newHistory(t)
 	cfg := newConfig(nil)
 
-	if _, err := scan.Run(context.Background(), []string{root}, cfg, hist); err != nil {
+	if _, err := scan.Run(context.Background(), []string{root}, cfg, hist, newStore(t)); err != nil {
 		t.Fatalf("first Run: %v", err)
 	}
 
-	summary, err := scan.Run(context.Background(), []string{root}, cfg, hist)
+	summary, err := scan.Run(context.Background(), []string{root}, cfg, hist, newStore(t))
 	if err != nil {
 		t.Fatalf("second Run: %v", err)
 	}
@@ -204,7 +212,7 @@ func TestRun_ExcludedProjectSkipped(t *testing.T) {
 	newProjectDir(t, root, "tools/scratch")
 
 	hist := newHistory(t)
-	summary, err := scan.Run(context.Background(), []string{root}, newConfig([]string{"scratch"}), hist)
+	summary, err := scan.Run(context.Background(), []string{root}, newConfig([]string{"scratch"}), hist, newStore(t))
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
@@ -227,11 +235,60 @@ func TestRun_PlainDirectoryNotSeeded(t *testing.T) {
 		t.Fatalf("mkdir: %v", err)
 	}
 
-	summary, err := scan.Run(context.Background(), []string{root}, newConfig(nil), newHistory(t))
+	summary, err := scan.Run(context.Background(), []string{root}, newConfig(nil), newHistory(t), newStore(t))
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
 	if summary != (scan.Summary{}) {
 		t.Fatalf("summary = %+v, want nothing seeded", summary)
+	}
+}
+
+func TestRun_ForgottenProjectNotResurrected(t *testing.T) {
+	root := t.TempDir()
+	gone := newProjectDir(t, root, "tools/forgotten")
+	kept := newProjectDir(t, root, "tools/kept")
+
+	hist := newHistory(t)
+	store := newStore(t)
+	if err := store.Forget(gone); err != nil {
+		t.Fatalf("Forget: %v", err)
+	}
+
+	summary, err := scan.Run(context.Background(), []string{root}, newConfig(nil), hist, store)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if summary != (scan.Summary{Seeded: 1, Projects: 1}) {
+		t.Fatalf("summary = %+v, want {Seeded:1 Projects:1}", summary)
+	}
+
+	visits, err := hist.Latest()
+	if err != nil {
+		t.Fatalf("Latest: %v", err)
+	}
+	if len(visits) != 1 || visits[0].Project != kept {
+		t.Fatalf("visits = %+v, want only %q", visits, kept)
+	}
+}
+
+func TestRun_ReAddedProjectIsSeededAgain(t *testing.T) {
+	root := t.TempDir()
+	dir := newProjectDir(t, root, "tools/back")
+
+	store := newStore(t)
+	if err := store.Forget(dir); err != nil {
+		t.Fatalf("Forget: %v", err)
+	}
+	if err := store.Add(dir); err != nil {
+		t.Fatalf("Add: %v", err)
+	}
+
+	summary, err := scan.Run(context.Background(), []string{root}, newConfig(nil), newHistory(t), store)
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if summary.Seeded != 1 {
+		t.Fatalf("Seeded = %d, want 1", summary.Seeded)
 	}
 }
