@@ -70,7 +70,7 @@ func (r ExecRunner) Run(a Action, path string) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("open terminal: %w", err)
 	}
-	defer tty.Close()
+	defer func() { _ = tty.Close() }()
 
 	cmd := Command(a, path)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = tty, tty, tty
