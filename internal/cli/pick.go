@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -17,28 +16,24 @@ import (
 const initHint = `cdd: no Wrapper installed, so this path was only printed.
 cdd: add "cdd init <shell> | source" (or the "eval" form) to your shell config so cdd can Jump.`
 
-// newPickCmd builds "cdd pick [query...]".
+// newPickCmd builds "cdd pick".
 func newPickCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "pick [query...]",
+		Use:   "pick",
 		Short: "prints the chosen Project's path; the Wrapper turns it into a Jump",
-		Args:  cobra.ArbitraryArgs,
+		Args:  cobra.NoArgs,
 		RunE:  pickRunE,
 	}
 }
 
-// pickRunE implements both "cdd pick [query...]" and the bare "cdd" root
-// command: load config, open History at its default path, resolve the
-// query to a Project via jump.Resolve and picker.Run, and print the
-// chosen absolute path plus a newline to stdout and nothing else.
+// pickRunE implements both "cdd pick" and the bare "cdd" root command:
+// load config, open History at its default path, resolve a Project via
+// jump.Resolve and picker.Run, and print the chosen absolute path plus a newline to stdout and nothing else.
 //
 // A cancelled Picker returns jump.ErrCancelled, which Run reports as exit
 // 130 with no message. Any other error is reported by Run as exit 1 with
 // the error's message on stderr.
-func pickRunE(cmd *cobra.Command, args []string) error {
-	// "cdd baz br" is the query "baz br": parent word, then name word.
-	query := strings.Join(args, " ")
-
+func pickRunE(cmd *cobra.Command, _ []string) error {
 	cfg, err := config.Load()
 	if err != nil {
 		return err
@@ -54,7 +49,7 @@ func pickRunE(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	abs, err := jump.Resolve(cmd.Context(), cfg, hist, query, picker.Run)
+	abs, err := jump.Resolve(cmd.Context(), cfg, hist, picker.Run)
 	if err != nil {
 		return err
 	}
