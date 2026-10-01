@@ -20,9 +20,9 @@ const (
 	focusFilter
 )
 
-// match is one row along with where, if anywhere, the current query matched
+// hit is one row along with where, if anywhere, the current query matched
 // its Project's shown path (Dir then Name), for highlighting.
-type match struct {
+type hit struct {
 	row     Row
 	matches []int // rune indexes into the matched string, for highlighting
 }
@@ -137,11 +137,11 @@ func statusCmd(status StatusFunc, path string, sem chan struct{}) tea.Cmd {
 
 // visibleMatches returns the current query's matches over rows: every row
 // in History order when the query is empty, otherwise fuzzy.Find's ranking.
-func (m Model) visibleMatches() []match {
+func (m Model) visibleMatches() []hit {
 	if m.query == "" {
-		out := make([]match, len(m.rows))
+		out := make([]hit, len(m.rows))
 		for i, r := range m.rows {
-			out[i] = match{row: r}
+			out[i] = hit{row: r}
 		}
 		return out
 	}
@@ -152,15 +152,15 @@ func (m Model) visibleMatches() []match {
 	}
 	results := fuzzy.Find(m.query, paths)
 
-	out := make([]match, len(results))
+	out := make([]hit, len(results))
 	for i, res := range results {
-		out[i] = match{row: m.rows[res.Index], matches: res.MatchedIndexes}
+		out[i] = hit{row: m.rows[res.Index], matches: res.MatchedIndexes}
 	}
 	return out
 }
 
 // visibleRows returns the current query's matches in the order the layout
 // draws them. It is the order the cursor indexes into.
-func (m Model) visibleRows() []match {
+func (m Model) visibleRows() []hit {
 	return m.visibleMatches()
 }

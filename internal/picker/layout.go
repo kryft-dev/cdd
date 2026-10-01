@@ -129,7 +129,7 @@ func (m Model) frameSize() (width, height int) {
 
 // computeLayout sizes one frame from the rows it has to show. The name
 // column holds the Project's parent directory and name.
-func (m Model) computeLayout(rows []match, now time.Time, width, height int) Layout {
+func (m Model) computeLayout(rows []hit, now time.Time, width, height int) Layout {
 	longestName, widestStatus := 0, 1
 	times := make([]time.Time, 0, len(rows))
 	for _, mt := range rows {
