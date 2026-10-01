@@ -10,6 +10,7 @@ import (
 	"github.com/kryft-dev/cdd/internal/history"
 	"github.com/kryft-dev/cdd/internal/jump"
 	"github.com/kryft-dev/cdd/internal/picker"
+	"github.com/kryft-dev/cdd/internal/project"
 )
 
 // initHint is printed to stderr, after the chosen path, when stdout is a
@@ -28,7 +29,7 @@ func newPickCmd() *cobra.Command {
 }
 
 // pickRunE implements both "cdd pick" and the bare "cdd" root command:
-// load config, open History at its default path, resolve a Project via
+// load config, open History and the projects file at their default paths, resolve a Project via
 // jump.Resolve and picker.Run, and print the chosen absolute path plus a newline to stdout and nothing else.
 // An Action that does not Jump prints nothing, so the Wrapper has nothing
 // to cd to.
@@ -53,7 +54,12 @@ func pickRunE(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	abs, err := jump.Resolve(cmd.Context(), cfg, hist, picker.Run, action.ExecRunner{})
+	storePath, err := project.StorePath()
+	if err != nil {
+		return fmt.Errorf("cdd: locate the projects file: %w", err)
+	}
+
+	abs, err := jump.Resolve(cmd.Context(), cfg, hist, project.OpenStore(storePath), picker.Run, action.ExecRunner{})
 	if err != nil {
 		return err
 	}

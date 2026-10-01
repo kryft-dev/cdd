@@ -31,8 +31,9 @@ func (e *ExitError) Error() string { return fmt.Sprintf("jump: action exited wit
 type PickFunc func(rows []picker.Row, status picker.StatusFunc, opts picker.Options) (picker.Choice, bool, error)
 
 // Resolve runs the pick flow that turns History into the absolute path of
-// the Project to Jump to: read its latest Visits, drop the Stale ones, run
-// the Picker (via pick), confirm the chosen directory still exists, Record
+// the Project to Jump to: read its latest Visits, drop the Stale and
+// Forgotten ones, list the Added Projects that have no Visit last, run the
+// Picker (via pick), confirm the chosen directory still exists, Record
 // the Visit, and return the path.
 //
 // When the user ran an Action that does not detach, Resolve also runs its
@@ -43,8 +44,13 @@ type PickFunc func(rows []picker.Row, status picker.StatusFunc, opts picker.Opti
 //
 // A cancelled Picker yields ErrCancelled. A Visit that fails to Record
 // only prints a warning to stderr; Resolve still returns the path.
-func Resolve(ctx context.Context, cfg config.Config, hist *history.History, pick PickFunc, run action.Runner) (string, error) {
+func Resolve(ctx context.Context, cfg config.Config, hist *history.History, store *project.Store, pick PickFunc, run action.Runner) (string, error) {
 	latest, err := hist.Latest()
+	if err != nil {
+		return "", fmt.Errorf("jump: %w", err)
+	}
+
+	marks, err := store.Marks()
 	if err != nil {
 		return "", fmt.Errorf("jump: %w", err)
 	}
@@ -54,7 +60,7 @@ func Resolve(ctx context.Context, cfg config.Config, hist *history.History, pick
 		return "", fmt.Errorf("jump: %w", err)
 	}
 
-	choice, err := choose(cfg, live(latest), counts, pick, recorder{run, hist})
+	choice, err := choose(cfg, listed(latest, marks), counts, pick, recorder{run, hist})
 	if err != nil {
 		return "", err
 	}
@@ -105,18 +111,6 @@ func (r recorder) Start(a action.Action, path string) error {
 	}
 	record(r.hist, path)
 	return nil
-}
-
-// live drops each Stale Visit from latest: one whose Project no longer
-// holds a git repository.
-func live(latest []history.Visit) []history.Visit {
-	out := make([]history.Visit, 0, len(latest))
-	for _, v := range latest {
-		if project.IsRepo(v.Project) {
-			out = append(out, v)
-		}
-	}
-	return out
 }
 
 // choose runs the Picker over latest, starting its detached Actions with
