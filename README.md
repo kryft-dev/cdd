@@ -76,17 +76,17 @@ it never overrides the date of a real Jump.
 
 ```sh
 cdd            # open the Picker over History, ordered by recency
-cdd <query>    # Jump straight there when exactly one Project matches, else
-               # open the Picker pre-filtered by query
-cdd baz br     # open the Picker on Projects named like "br" under a "baz" parent
 ```
 
-A query matches a Project straight away when it is the Project's name
-(`cdd cdd`), a trailing part of its path (`cdd tools/cdd`), or its whole
-path. The Picker lists only Projects in History, and drops any whose `.git`
-has since gone.
+`cdd` takes no query: it always opens the Picker, and you filter by typing
+into it. For a typed jump from the command line, use a tool like zoxide.
+The Picker lists only Projects in History, and drops any whose `.git` has
+since gone.
 
 ### Query syntax
+
+What you type into the Picker is split on spaces into words:
+
 
 | Query | Matches |
 | --- | --- |
@@ -101,8 +101,7 @@ Each word matches fuzzily, in order (`br` finds `barbar`), and survives a
 typo: one edit for words of 4–7 letters, two from 8 (`brabar` still finds
 `barbar`). Words of up to 3 letters must be exact. Typo matches rank below
 every exact one; equally good matches keep History order. Case is ignored
-unless the query has an uppercase letter. A query with a space never takes
-the straight-to-Jump shortcut.
+unless the query has an uppercase letter.
 
 ### Keys
 
