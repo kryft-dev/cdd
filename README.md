@@ -161,9 +161,9 @@ Key names are those the Picker recognises: `ctrl+x`, `alt+x`, `enter`,
 (`ctrl+n` bound means `↓` is the only way down), but `esc` and `ctrl+c`
 can never be bound. A plain printable key (`a`, `?`) would steal typing, so
 it is an error unless `keys.vim = true`, where it applies in list focus.
-Two Actions you bind to one key is an error (a built-in's default key just
-yields to yours), and `key = ""` leaves an Action
-unbound. Each of these is reported with the line it is on.
+Two Actions you bind to one key is an error, though a built-in's default key
+yields to yours, and `key = ""` leaves an Action unbound. Each of these is
+reported with the line it is on.
 
 An `[actions.<name>]` table whose name is a built-in Action overrides only
 the fields it sets. The only built-in Action is `jump`, which Jumps to the
