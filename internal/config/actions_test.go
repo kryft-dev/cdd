@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -28,7 +29,7 @@ jump = true
 		{Name: "code", Key: "ctrl+v", Run: "code {path}", Detach: true},
 		{Name: "lazygit", Key: "ctrl+alt+l", Run: "lazygit", Jump: true},
 	}
-	got := cfg.ResolvedActions[len(cfg.ResolvedActions)-2:]
+	got := cfg.ResolvedActions[:2]
 	for i := range want {
 		if got[i] != want[i] {
 			t.Errorf("action %d = %+v, want %+v", i, got[i], want[i])
@@ -79,8 +80,39 @@ func TestLoadFromPrintableActionKeyAllowedWithVim(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadFrom: %v", err)
 	}
-	last := cfg.ResolvedActions[len(cfg.ResolvedActions)-1]
-	if last.Name != "help" || last.Key != "?" {
-		t.Errorf("last action = %+v", last)
+	first := cfg.ResolvedActions[0]
+	if first.Name != "help" || first.Key != "?" {
+		t.Errorf("first action = %+v", first)
+	}
+}
+
+func TestLoadFromActionsKeepConfigOrderBeforeTheBuiltins(t *testing.T) {
+	cfg, err := config.LoadFrom(writeConfig(t, `
+[actions.zed]
+run = "zed {path}"
+
+[actions.editor]
+run = "hx {path}"
+
+[actions."a b"]
+run = "x"
+
+[actions.code]
+run = "code {path}"
+`))
+	if err != nil {
+		t.Fatalf("LoadFrom: %v", err)
+	}
+
+	var got []string
+	for _, a := range cfg.ResolvedActions {
+		got = append(got, a.Name)
+	}
+	want := []string{"zed", "a b", "code"}
+	for _, a := range action.Builtins() {
+		want = append(want, a.Name)
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("order = %v, want %v", got, want)
 	}
 }

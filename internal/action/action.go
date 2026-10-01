@@ -84,8 +84,11 @@ func (e *Error) Error() string {
 func (e *Error) Unwrap() error { return e.Err }
 
 // Merge applies user's overrides onto the built-in Actions and returns the
-// result: the built-ins in their own order, then the user's other Actions
-// sorted by name. It fails on the first invalid Action with an *Error.
+// result in the order the Picker lists them: the user's own Actions first,
+// in the order of order (the names of the user's tables as config.toml
+// lists them; any it leaves out follow, sorted by name), then the
+// built-ins in their own order. It fails on the first invalid Action with
+// an *Error.
 //
 // A key a user table sets wins over an Action that only holds it by default,
 // which is left unbound as if the user had set its key to "". Two Actions
@@ -94,23 +97,36 @@ func (e *Error) Unwrap() error { return e.Err }
 //
 // vim says whether the vim key map is on, the only one where a plain
 // printable key may be bound.
-func Merge(user map[string]Override, vim bool) ([]Action, error) {
-	out := Builtins()
-	index := make(map[string]int, len(out))
-	for i, a := range out {
-		index[a.Name] = i
+func Merge(user map[string]Override, order []string, vim bool) ([]Action, error) {
+	var out []Action
+	index := make(map[string]int, len(user)+len(builtins))
+	isBuiltin := make(map[string]bool, len(builtins))
+	for _, a := range builtins {
+		isBuiltin[a.Name] = true
 	}
 
-	var added []string
-	for name := range user {
-		if _, ok := index[name]; !ok {
-			added = append(added, name)
+	add := func(name string) {
+		if _, ok := user[name]; ok && !isBuiltin[name] {
+			if _, seen := index[name]; !seen {
+				index[name] = len(out)
+				out = append(out, Action{Name: name})
+			}
 		}
 	}
-	sort.Strings(added)
-	for _, name := range added {
-		index[name] = len(out)
-		out = append(out, Action{Name: name})
+	for _, name := range order {
+		add(name)
+	}
+	var rest []string
+	for name := range user {
+		rest = append(rest, name)
+	}
+	sort.Strings(rest)
+	for _, name := range rest {
+		add(name)
+	}
+	for _, a := range builtins {
+		index[a.Name] = len(out)
+		out = append(out, a)
 	}
 
 	for name, o := range user {
