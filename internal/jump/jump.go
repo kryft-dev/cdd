@@ -78,7 +78,7 @@ func choose(cfg config.Config, latest []history.Visit, counts map[string]int, pi
 		return s
 	}
 
-	row, ok, err := pick(rows, status, picker.Options{Vim: cfg.Keys.Vim, Layout: picker.LayoutStyle(cfg.Picker.Layout)})
+	row, ok, err := pick(rows, status, picker.Options{Vim: cfg.Keys.Vim, Layout: picker.Layout(cfg.Picker.Layout)})
 	if err != nil {
 		return "", fmt.Errorf("jump: %w", err)
 	}

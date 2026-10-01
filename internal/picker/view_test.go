@@ -15,13 +15,13 @@ import (
 // allLayouts is every layout the Picker can draw, for the behaviour each
 // must share: the frame's height, the alternate screen, equal-width rows
 // and windowing the body to the terminal.
-var allLayouts = []picker.LayoutStyle{picker.LayoutList}
+var allLayouts = []picker.Layout{picker.LayoutList}
 
 // sizedModel builds a Model in the given layout, sends it one
 // tea.WindowSizeMsg and reports the terminal's background as dark: a sized
 // terminal with a settled palette is the state every View test starts
 // from, since nothing is drawn before the palette settles.
-func sizedModel(rows []picker.Row, layout picker.LayoutStyle, width, height int) picker.Model {
+func sizedModel(rows []picker.Row, layout picker.Layout, width, height int) picker.Model {
 	m := picker.NewModel(rows, noopStatus, picker.Options{Layout: layout})
 	next, _ := m.Update(tea.WindowSizeMsg{Width: width, Height: height})
 	next, _ = next.(picker.Model).Update(tea.BackgroundColorMsg{Color: lipgloss.Color("#0D1117")})
@@ -103,7 +103,7 @@ func TestModel_View_RowsShareEqualWidth(t *testing.T) {
 		{Project: picker.Project{Dir: "~/work/", Name: "gamma", Path: "/root/work/gamma"}},
 	}
 	// Each layout looks for its own row text.
-	label := map[picker.LayoutStyle]func(picker.Row) string{
+	label := map[picker.Layout]func(picker.Row) string{
 		picker.LayoutList: func(r picker.Row) string { return r.Project.Dir + r.Project.Name },
 	}
 
@@ -161,7 +161,7 @@ func TestModel_View_FilterLineSitsWhereTheLayoutPutsIt(t *testing.T) {
 	const width, height = 110, 24
 	met := picker.ComputeMetrics(20, 1, make([]time.Time, len(rows)), time.Now(), width, height)
 
-	promptLine := map[picker.LayoutStyle]int{
+	promptLine := map[picker.Layout]int{
 		picker.LayoutList: met.ListHeight,
 	}
 	for _, layout := range allLayouts {
