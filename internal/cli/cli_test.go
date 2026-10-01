@@ -2,7 +2,6 @@ package cli_test
 
 import (
 	"bytes"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -141,19 +140,20 @@ func TestInitEachShell(t *testing.T) {
 	}
 }
 
-// TestPickAcceptsWords checks that "cdd pick" takes a query of several
-// words ("cdd baz br") rather than rejecting the extra arguments as a usage
-// error. With no History and no terminal it fails later, exiting 1.
-func TestPickAcceptsWords(t *testing.T) {
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
-	t.Setenv("XDG_STATE_HOME", filepath.Join(home, ".local", "state"))
-	t.Setenv("XDG_DATA_HOME", filepath.Join(home, ".local", "share"))
-
-	code, _, stderr := runCLI(t, "pick", "baz", "br")
-	if code == 2 {
-		t.Errorf("exit code = 2 (usage error), want the words accepted (stderr: %q)", stderr)
+// TestQueryArgumentRejected checks that "cdd foo" and "cdd pick foo" fail as
+// plain usage errors, exit 2, rather than taking a query.
+func TestQueryArgumentRejected(t *testing.T) {
+	for _, args := range [][]string{{"foo"}, {"pick", "foo"}, {"pick", "baz", "br"}} {
+		code, stdout, stderr := runCLI(t, args...)
+		if code != 2 {
+			t.Errorf("cdd %v: exit code = %d, want 2 (stderr: %q)", args, code, stderr)
+		}
+		if stdout != "" {
+			t.Errorf("cdd %v: stdout = %q, want empty", args, stdout)
+		}
+		if !strings.Contains(stderr, "unknown command") || strings.Contains(stderr, "removed") {
+			t.Errorf("cdd %v: stderr = %q, want cobra's plain unknown-command error", args, stderr)
+		}
 	}
 }
 

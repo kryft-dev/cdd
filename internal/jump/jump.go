@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/kryft-dev/cdd/internal/config"
 	"github.com/kryft-dev/cdd/internal/git"
@@ -24,15 +22,14 @@ var ErrCancelled = errors.New("jump: cancelled")
 // passes picker.Run itself.
 type PickFunc func(rows []picker.Row, status picker.StatusFunc, opts picker.Options) (picker.Row, bool, error)
 
-// Resolve runs the pick flow that turns query into the absolute path of
-// the Project to Jump to: read History's latest Visits, drop the Stale
-// ones, take the exact-match shortcut on a Project's name or trailing path,
-// otherwise run the Picker (via pick) with query prefilled, confirm the
-// chosen directory still exists, Record the Visit, and return the path.
+// Resolve runs the pick flow that turns History into the absolute path of
+// the Project to Jump to: read its latest Visits, drop the Stale ones, run
+// the Picker (via pick) with an empty Query, confirm the chosen directory
+// still exists, Record the Visit, and return the path.
 //
 // A cancelled Picker yields ErrCancelled. A Visit that fails to Record
 // only prints a warning to stderr; Resolve still returns the path.
-func Resolve(ctx context.Context, cfg config.Config, hist *history.History, query string, pick PickFunc) (string, error) {
+func Resolve(ctx context.Context, cfg config.Config, hist *history.History, pick PickFunc) (string, error) {
 	latest, err := hist.Latest()
 	if err != nil {
 		return "", fmt.Errorf("jump: %w", err)
@@ -43,7 +40,7 @@ func Resolve(ctx context.Context, cfg config.Config, hist *history.History, quer
 		return "", fmt.Errorf("jump: %w", err)
 	}
 
-	path, err := choose(cfg, live(latest), counts, query, pick)
+	path, err := choose(cfg, live(latest), counts, pick)
 	if err != nil {
 		return "", err
 	}
@@ -71,13 +68,9 @@ func live(latest []history.Visit) []history.Visit {
 	return out
 }
 
-// choose picks a Project either via the exact-match shortcut or by running
-// the Picker, and returns its absolute path.
-func choose(cfg config.Config, latest []history.Visit, counts map[string]int, query string, pick PickFunc) (string, error) {
-	if p, ok := exactMatch(latest, query); ok {
-		return p, nil
-	}
-
+// choose runs the Picker over latest and returns the absolute path of the
+// Project it chose.
+func choose(cfg config.Config, latest []history.Visit, counts map[string]int, pick PickFunc) (string, error) {
 	home, _ := os.UserHomeDir()
 	rows := toRows(latest, counts, home)
 	status := func(c context.Context, dir string) git.Status {
@@ -85,7 +78,7 @@ func choose(cfg config.Config, latest []history.Visit, counts map[string]int, qu
 		return s
 	}
 
-	row, ok, err := pick(rows, status, picker.Options{Vim: cfg.Keys.Vim, Query: query, Layout: picker.LayoutStyle(cfg.Picker.Layout)})
+	row, ok, err := pick(rows, status, picker.Options{Vim: cfg.Keys.Vim, Layout: picker.LayoutStyle(cfg.Picker.Layout)})
 	if err != nil {
 		return "", fmt.Errorf("jump: %w", err)
 	}
@@ -93,26 +86,4 @@ func choose(cfg config.Config, latest []history.Visit, counts map[string]int, qu
 		return "", ErrCancelled
 	}
 	return row.Project.Path, nil
-}
-
-// exactMatch reports whether query names exactly one Project in latest:
-// its name, or any trailing run of its path ("cdd", "tools/cdd"), or the
-// whole path. A query matching two or more Projects, or none, is not an
-// exact match, and neither is one holding a space: that is a parent-then-
-// name filter for the Picker.
-func exactMatch(latest []history.Visit, query string) (string, bool) {
-	query = strings.TrimSuffix(query, "/")
-	if query == "" || strings.ContainsRune(query, ' ') {
-		return "", false
-	}
-
-	var found string
-	count := 0
-	for _, v := range latest {
-		if v.Project == query || strings.HasSuffix(v.Project, string(filepath.Separator)+query) {
-			found = v.Project
-			count++
-		}
-	}
-	return found, count == 1
 }
