@@ -127,15 +127,20 @@ func TestLoadFromUnknownKeyRejected(t *testing.T) {
 	}
 }
 
-func TestLoadFromRemovedRootExplained(t *testing.T) {
+// TestLoadFromRootRejectedAsUnknown checks that root, once a key, now fails
+// as any other unknown key, with no note about its removal.
+func TestLoadFromRootRejectedAsUnknown(t *testing.T) {
 	_, err := config.LoadFrom(writeConfig(t, `root = "~/Developer"`+"\n"))
 	if err == nil {
 		t.Fatal("LoadFrom root: got nil error, want error")
 	}
-	for _, want := range []string{"root", "removed", "cdd scan", "line 1"} {
+	for _, want := range []string{"unknown key", "root", "line 1"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error = %q, want it to contain %q", err.Error(), want)
 		}
+	}
+	if strings.Contains(err.Error(), "removed") {
+		t.Errorf("error = %q, want no removal message", err.Error())
 	}
 }
 
@@ -161,14 +166,19 @@ func TestLoadFromUnknownPickerLayoutRejected(t *testing.T) {
 	}
 }
 
-func TestLoadFromGroupedLayoutExplained(t *testing.T) {
+// TestLoadFromGroupedLayoutRejectedAsInvalid checks that "grouped" fails as
+// any other invalid layout, with no note about its removal.
+func TestLoadFromGroupedLayoutRejectedAsInvalid(t *testing.T) {
 	_, err := config.LoadFrom(writeConfig(t, "[picker]\nlayout = \"grouped\"\n"))
 	if err == nil {
 		t.Fatal(`LoadFrom layout = "grouped": got nil error, want error`)
 	}
-	for _, want := range []string{"picker.layout", "grouped", "removed", `"list"`} {
+	for _, want := range []string{"picker.layout must be", "grouped", `"list"`} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error = %q, want it to contain %q", err.Error(), want)
 		}
+	}
+	if strings.Contains(err.Error(), "removed") {
+		t.Errorf("error = %q, want no removal message", err.Error())
 	}
 }
