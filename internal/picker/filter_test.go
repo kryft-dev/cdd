@@ -5,6 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/kryft-dev/cdd/internal/action"
 	"github.com/kryft-dev/cdd/internal/picker"
 )
 
@@ -57,7 +58,7 @@ func TestModel_FilterWords(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := typed(picker.NewModel(sameNameRows(), noopStatus, picker.Options{}), tt.query)
+			m := typed(picker.NewModel(sameNameRows(), noopStatus, picker.Options{Actions: action.Builtins()}), tt.query)
 			if got := chosen(m); got != tt.want {
 				t.Errorf("query %q chose %q, want %q", tt.query, got, tt.want)
 			}
@@ -68,7 +69,7 @@ func TestModel_FilterWords(t *testing.T) {
 // TestModel_FilterTiesKeepHistoryOrder checks that equally good matches
 // stay in History order, the newer first.
 func TestModel_FilterTiesKeepHistoryOrder(t *testing.T) {
-	m := typed(picker.NewModel(sameNameRows(), noopStatus, picker.Options{}), " barbar")
+	m := typed(picker.NewModel(sameNameRows(), noopStatus, picker.Options{Actions: action.Builtins()}), " barbar")
 	if got, want := chosen(m), "/root/domain/foo.com/barbar"; got != want {
 		t.Errorf("chose %q, want %q", got, want)
 	}

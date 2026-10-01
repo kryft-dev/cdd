@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/kryft-dev/cdd/internal/action"
 	"github.com/kryft-dev/cdd/internal/picker"
 )
 
@@ -33,7 +34,7 @@ func TestOptions_LayoutDefaultsToList(t *testing.T) {
 // rows in the order they were given (History order) rather than regrouping
 // them by parent directory.
 func TestModel_ListLayout_FlatHistoryOrder(t *testing.T) {
-	m := picker.NewModel(historyRows(), fakeStatus, picker.Options{Layout: picker.LayoutList})
+	m := picker.NewModel(historyRows(), fakeStatus, picker.Options{Layout: picker.LayoutList, Actions: action.Builtins()})
 
 	want := []string{
 		"/root/tools/cdd",
