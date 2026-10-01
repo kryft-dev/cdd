@@ -6,6 +6,7 @@ package action
 import (
 	"errors"
 	"fmt"
+	"runtime"
 	"slices"
 	"sort"
 )
@@ -47,6 +48,10 @@ type Override struct {
 // table with the same name overrides it field by field.
 var builtins = []Action{
 	{Name: "jump", Key: "enter", Jump: true},
+	{Name: "files", Key: "ctrl+o", Run: Opener(runtime.GOOS) + " {path}", Detach: true},
+	// The shell picks the editor each time the Action runs, so a change to
+	// $VISUAL or $EDITOR needs no restart.
+	{Name: "editor", Key: "ctrl+e", Run: "${VISUAL:-${EDITOR:-vi}} {path}"},
 }
 
 // Builtins returns a copy of the built-in Actions.
