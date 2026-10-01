@@ -114,7 +114,7 @@ func writeExample(path string, force bool) error {
 	f, err := os.OpenFile(path, flags, 0o644)
 	if err != nil {
 		if errors.Is(err, os.ErrExist) {
-			return fmt.Errorf("cdd config: %s already exists (use --force to replace it): %w", path, err)
+			return fmt.Errorf("cdd config: %s already exists (use --force to replace it): %w", path, os.ErrExist)
 		}
 		return fmt.Errorf("cdd config: %w", err)
 	}
