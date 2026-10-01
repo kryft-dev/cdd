@@ -111,7 +111,7 @@ func TestInitPassthrough(t *testing.T) {
 		t.Fatalf("exit code = %d, want 0 (stderr: %q)", code, stderr)
 	}
 
-	for _, name := range []string{"init", "scan", "version", "help", "completion"} {
+	for _, name := range []string{"init", "scan", "config", "version", "help", "completion"} {
 		if !strings.Contains(stdout, name) {
 			t.Errorf("script does not mention pass-through command %q:\n%s", name, stdout)
 		}

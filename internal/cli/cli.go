@@ -1,6 +1,6 @@
 // Package cli wires cdd's command surface with github.com/spf13/cobra: the
 // root command (bare behaves as pick), pick, init, scan, add, forget,
-// version, plus
+// config, version, plus
 // cobra's own help and completion commands.
 package cli
 
@@ -58,8 +58,8 @@ func Run(args []string, stdout, stderr io.Writer) int {
 }
 
 // newRootCmd builds the cdd command tree: root (bare behaves as pick),
-// pick, init, scan, add, forget, version, plus cobra's help and completion
-// commands.
+// pick, init, scan, add, forget, config, version, plus cobra's help and
+// completion commands.
 func newRootCmd() *cobra.Command {
 	root := &cobra.Command{
 		Use:   "cdd",
@@ -75,7 +75,7 @@ func newRootCmd() *cobra.Command {
 		return pickRunE(cmd, nil)
 	}
 
-	root.AddCommand(newPickCmd(), newInitCmd(), newScanCmd(), newAddCmd(), newForgetCmd(), newVersionCmd())
+	root.AddCommand(newPickCmd(), newInitCmd(), newScanCmd(), newAddCmd(), newForgetCmd(), newConfigCmd(), newVersionCmd())
 
 	// Initialized here, not left to Execute, so the command tree is
 	// complete (including "help" and "completion") whenever init's
