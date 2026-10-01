@@ -86,8 +86,13 @@ type Options struct {
 	// LayoutList.
 	Layout Layout
 
-	// Actions are the Actions bound to keys, as config resolves them.
+	// Actions are the Actions bound to keys, as config resolves them. The
+	// footer hints list them in this order, the one on enter first.
 	Actions []action.Action
+
+	// HideHints leaves the key hints off the footer line, which still
+	// shows the match count and any message.
+	HideHints bool
 
 	// Runner starts the detached Actions, which leave the Picker open. The
 	// zero value is action.ExecRunner.

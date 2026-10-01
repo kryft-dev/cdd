@@ -99,31 +99,3 @@ func (m Model) previewView(t theme, rows []hit, met Metrics, now time.Time) stri
 		MaxHeight(met.ListHeight) // Height is a minimum; a tall body must not grow the box
 	return box.Render(body.String())
 }
-
-// footerView renders the rule, legend line (when there is room), keys line
-// (when there is room) and the match count.
-func (m Model) footerView(t theme, width, matched int, met Metrics) string {
-	var lines []string
-	lines = append(lines, t.rule_(width))
-	if met.ShowLegend {
-		lines = append(lines, t.legend())
-	}
-	if met.ShowKeys {
-		keys := t.keysLine("↑↓", "move", "enter", "jump", "esc", "cancel", "ctrl+u", "clear")
-		if m.vim {
-			keys = t.keysLine("j/k", "move", "f", "filter", "esc", "back/cancel", "enter", "jump", "q", "quit")
-		}
-		count := t.muted_().Render(fmt.Sprintf("%d/%d", matched, len(m.rows)))
-		gap := max(width-lipgloss.Width(keys)-lipgloss.Width(count), 1)
-		if m.message != "" {
-			colour := t.red
-			if m.messageOK {
-				colour = t.green
-			}
-			keys = t.fg(colour).Render(truncateName(m.message, max(width-lipgloss.Width(count)-1, 1)))
-			gap = max(width-lipgloss.Width(keys)-lipgloss.Width(count), 1)
-		}
-		lines = append(lines, keys+strings.Repeat(" ", gap)+count)
-	}
-	return strings.Join(lines, "\n")
-}

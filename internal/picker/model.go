@@ -38,6 +38,8 @@ type Model struct {
 	layout Layout
 
 	actions map[string]action.Action // keyed by Action.Key
+	hints   []action.Action          // the bound Actions in hint order
+	noHints bool                     // Options.HideHints
 	runner  action.Runner
 	copy    func(text string) (bool, error)
 
@@ -79,9 +81,17 @@ func NewModel(rows []Row, status StatusFunc, opts Options) Model {
 		layout = LayoutList
 	}
 	actions := make(map[string]action.Action, len(opts.Actions))
+	var hints []action.Action
 	for _, a := range opts.Actions {
-		if a.Key != "" {
-			actions[a.Key] = a
+		if a.Key == "" {
+			continue
+		}
+		actions[a.Key] = a
+		if a.Key == "enter" {
+			// Whatever holds enter heads the hints, as the way in.
+			hints = append([]action.Action{a}, hints...)
+		} else {
+			hints = append(hints, a)
 		}
 	}
 	runner := opts.Runner
@@ -94,6 +104,8 @@ func NewModel(rows []Row, status StatusFunc, opts Options) Model {
 	}
 	return Model{
 		actions:  actions,
+		hints:    hints,
+		noHints:  opts.HideHints,
 		runner:   runner,
 		copy:     copyFn,
 		rows:     rows,
