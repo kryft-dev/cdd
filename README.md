@@ -81,7 +81,25 @@ cdd            # open the Picker over History, ordered by recency
 `cdd` takes no query: it always opens the Picker, and you filter by typing
 into it. For a typed jump from the command line, use a tool like zoxide.
 The Picker lists only Projects in History, and drops any whose `.git` has
-since gone.
+since gone, along with any you have forgotten.
+
+### Adding and forgetting Projects
+
+A directory without a `.git` is not a Project until you add it:
+
+```sh
+cdd add ~/notes   # a Project from now on; it shows in the Picker at once
+cdd add           # the current directory
+cdd forget ~/old  # hide a Project for good, git repository or not
+cdd forget        # the current directory
+```
+
+An added directory is listed even with no Visits (after the visited ones)
+and drops out once the directory is gone. A forgotten Project is never
+listed, and `cdd scan` does not bring it back. `cdd add` on a forgotten
+Project undoes the forget. cdd records both in its own `projects` file and
+never writes into your directories. See
+[ADR 0002](docs/adr/0002-projects-can-be-added-by-hand.md).
 
 ### Query syntax
 
@@ -298,7 +316,9 @@ to rebuild History, since the old entries were stored relative to Root and
 are ignored.
 
 History is stored at `$XDG_DATA_HOME/cdd/history`, falling back to
-`~/.local/share/cdd/history` when `XDG_DATA_HOME` is unset.
+`~/.local/share/cdd/history` when `XDG_DATA_HOME` is unset. The `projects`
+file written by `cdd add` and `cdd forget` sits beside it. Each line is
+`add <path>` or `forget <path>`, and the last line for a path wins.
 
 ## How it works
 
@@ -308,7 +328,9 @@ Visit per git repository it finds, dated from the repository's last commit
 Projects drawn from History alone, most recently visited first, so opening
 it never walks the disk; choosing a Project records a new Visit and hands
 its path to the Wrapper, which turns it into a Jump in your shell. See
-[ADR 0001](docs/adr/0001-projects-are-git-repos-found-by-scan.md) for why.
+[ADR 0001](docs/adr/0001-projects-are-git-repos-found-by-scan.md) for why,
+and [ADR 0002](docs/adr/0002-projects-can-be-added-by-hand.md) for the
+directories you add by hand.
 
 ## Contributing
 
