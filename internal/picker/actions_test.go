@@ -215,7 +215,7 @@ func TestModel_Action_NoRowsIsANoOp(t *testing.T) {
 		m, _ = press(m, tea.KeyPressMsg{Code: c, Text: string(c)})
 	}
 
-	m, cmd := press(m, ctrlV)
+	_, cmd := press(m, ctrlV)
 	if len(r.started) != 0 || cmd != nil {
 		t.Errorf("started = %v, Cmd = %v, want nothing", r.started, cmd != nil)
 	}

@@ -129,7 +129,7 @@ func (m Model) updateKeyVim(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 // counts in the vim key map's list focus, elsewhere it is typing.
 func (m Model) boundAction(key string) (action.Action, bool) {
 	a, ok := m.actions[key]
-	if ok && action.IsPrintable(key) && !(m.vim && m.focus == focusList) {
+	if ok && action.IsPrintable(key) && (!m.vim || m.focus != focusList) {
 		return action.Action{}, false
 	}
 	return a, ok
