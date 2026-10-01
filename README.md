@@ -174,6 +174,13 @@ the fields it sets. The built-in Actions are:
 | `files` | `ctrl+o` | `xdg-open {path}` (`open {path}` on macOS), detached |
 | `editor` | `ctrl+e` | `${VISUAL:-${EDITOR:-vi}} {path}`, on your terminal |
 | `remote` | `ctrl+g` | `xdg-open {remote}` (`open {remote}` on macOS), detached |
+| `copy` | `ctrl+y` | Copies the Project's path to the clipboard, and says "copied" on the last line |
+
+`copy` uses the first of `wl-copy` (when `WAYLAND_DISPLAY` is set), `xclip`,
+`xsel` and `pbcopy` it finds on `PATH`. With none of them it sends the OSC 52
+escape to the terminal instead, which also works over SSH in terminals that
+allow it. Setting `run` replaces it with an ordinary command, such as
+`run = "printf %s {path} | wl-copy"` with `detach = true`.
 
 `editor` reads `$VISUAL`, else `$EDITOR`, else `vi`, each time it runs.
 Override `run` to pick a program, or set `key = ""` to unbind any of them:
@@ -260,7 +267,7 @@ layout = "list"
   key map.
 - `[actions.<name>]`: an Action, with `key`, `run`, `jump` and `detach`;
   see [Actions](#actions). Not in the defaults above; `jump`, `files`,
-  `editor` and `remote` exist unless you override them.
+  `editor`, `remote` and `copy` exist unless you override them.
 - `[picker].layout`: which Layout the Picker draws. `"list"`, described
   above, is the default and, for now, the only one. Any other value is a
   config error.
