@@ -92,18 +92,28 @@ func defaultConfig() Config {
 	}
 }
 
-// Load reads cdd's configuration from $XDG_CONFIG_HOME/cdd/config.toml,
-// defaulting to ~/.config/cdd/config.toml when XDG_CONFIG_HOME is unset.
-func Load() (Config, error) {
+// Path returns where cdd's configuration lives:
+// $XDG_CONFIG_HOME/cdd/config.toml, defaulting to ~/.config/cdd/config.toml
+// when XDG_CONFIG_HOME is unset.
+func Path() (string, error) {
 	dir := os.Getenv("XDG_CONFIG_HOME")
 	if dir == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			return Config{}, fmt.Errorf("config: determine home directory: %w", err)
+			return "", fmt.Errorf("config: determine home directory: %w", err)
 		}
 		dir = filepath.Join(home, ".config")
 	}
-	return LoadFrom(filepath.Join(dir, "cdd", "config.toml"))
+	return filepath.Join(dir, "cdd", "config.toml"), nil
+}
+
+// Load reads cdd's configuration from Path.
+func Load() (Config, error) {
+	path, err := Path()
+	if err != nil {
+		return Config{}, err
+	}
+	return LoadFrom(path)
 }
 
 // LoadFrom reads cdd's configuration from path. A missing file is every
