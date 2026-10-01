@@ -115,6 +115,10 @@ func (m Model) footerView(t theme, width, matched int, met Metrics) string {
 		}
 		count := t.muted_().Render(fmt.Sprintf("%d/%d", matched, len(m.rows)))
 		gap := max(width-lipgloss.Width(keys)-lipgloss.Width(count), 1)
+		if m.message != "" {
+			keys = t.fg(t.red).Render(truncateName(m.message, max(width-lipgloss.Width(count)-1, 1)))
+			gap = max(width-lipgloss.Width(keys)-lipgloss.Width(count), 1)
+		}
 		lines = append(lines, keys+strings.Repeat(" ", gap)+count)
 	}
 	return strings.Join(lines, "\n")

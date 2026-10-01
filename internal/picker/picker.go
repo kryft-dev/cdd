@@ -14,6 +14,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/kryft-dev/cdd/internal/action"
 	"github.com/kryft-dev/cdd/internal/git"
 )
 
@@ -41,6 +42,16 @@ type Row struct {
 
 	// Visits is the count of Visits History holds for the Project.
 	Visits int
+}
+
+// Choice is what the user chose in the Picker: a Project and, unless it is
+// a plain Jump, the Action to run on it. A detached Action never ends up
+// here, since the Picker runs it and stays open.
+type Choice struct {
+	Row Row
+
+	// Action is the Action to run on the Row, or nil for a plain Jump.
+	Action *action.Action
 }
 
 // StatusFunc reports a directory's git status. The Picker calls it once per
@@ -73,6 +84,13 @@ type Options struct {
 	// Layout selects which layout is drawn. The zero value is
 	// LayoutList.
 	Layout Layout
+
+	// Actions are the Actions bound to keys, as config resolves them.
+	Actions []action.Action
+
+	// Runner starts the detached Actions, which leave the Picker open. The
+	// zero value is action.ExecRunner.
+	Runner action.Runner
 }
 
 // concurrency bounds how many StatusFunc calls run at once, so a large
@@ -80,17 +98,17 @@ type Options struct {
 const concurrency = 8
 
 // Run draws the Picker over rows, which must already be in History order,
-// and lets the user filter and choose one. It returns the chosen Row and
-// true, or the zero Row and false when the user cancels.
+// and lets the user filter and choose one. It returns the Choice and true,
+// or the zero Choice and false when the user cancels.
 //
 // The Picker draws on /dev/tty via tea.OpenTTY, falling back to stderr when
 // no TTY is available. It never writes to stdout.
-func Run(rows []Row, status StatusFunc, opts Options) (Row, bool, error) {
+func Run(rows []Row, status StatusFunc, opts Options) (Choice, bool, error) {
 	m := NewModel(rows, status, opts)
 
 	ttyOpts, cleanup, err := ttyProgramOptions()
 	if err != nil {
-		return Row{}, false, err
+		return Choice{}, false, err
 	}
 	if cleanup != nil {
 		defer cleanup()
@@ -99,17 +117,17 @@ func Run(rows []Row, status StatusFunc, opts Options) (Row, bool, error) {
 	p := tea.NewProgram(m, ttyOpts...)
 	final, err := p.Run()
 	if err != nil {
-		return Row{}, false, err
+		return Choice{}, false, err
 	}
 
 	fm, ok := final.(Model)
 	if !ok {
-		return Row{}, false, errors.New("picker: unexpected Model type from Bubble Tea")
+		return Choice{}, false, errors.New("picker: unexpected Model type from Bubble Tea")
 	}
 	if !fm.chosen {
-		return Row{}, false, nil
+		return Choice{}, false, nil
 	}
-	return fm.chosenRow, true, nil
+	return Choice{Row: fm.chosenRow, Action: fm.chosenAction}, true, nil
 }
 
 // ttyProgramOptions builds the tea.ProgramOptions that make the Picker draw

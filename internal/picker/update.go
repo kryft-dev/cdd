@@ -1,7 +1,11 @@
 package picker
 
 import (
+	"fmt"
+
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/kryft-dev/cdd/internal/action"
 )
 
 // Update handles one message: a key press, a status result landing, a
@@ -35,8 +39,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// updateKey dispatches a key press by the active key map and focus.
+// updateKey dispatches a key press: to the Action bound to it, else by the
+// active key map and focus. An Action's key overrides a navigation key of
+// the same name.
 func (m Model) updateKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	m.message = ""
+	if a, ok := m.boundAction(msg.String()); ok {
+		return m.runAction(a)
+	}
 	if m.vim {
 		return m.updateKeyVim(msg)
 	}
@@ -117,6 +127,40 @@ func (m Model) updateKeyVim(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.choose()
 	case "esc", "q", "ctrl+c":
 		return m.cancel()
+	}
+	return m, nil
+}
+
+// boundAction returns the Action bound to key. A plain printable key only
+// counts in the vim key map's list focus, elsewhere it is typing.
+func (m Model) boundAction(key string) (action.Action, bool) {
+	a, ok := m.actions[key]
+	if ok && action.IsPrintable(key) && !(m.vim && m.focus == focusList) {
+		return action.Action{}, false
+	}
+	return a, ok
+}
+
+// runAction runs a on the row under the cursor, when there is one. A
+// detached Action starts and the Picker stays open, showing the failure on
+// the footer line if it did not start; any other quits with the Action as
+// the Choice, for the caller to run once the screen is restored.
+func (m Model) runAction(a action.Action) (tea.Model, tea.Cmd) {
+	rows := m.visibleRows()
+	if m.cursor < 0 || m.cursor >= len(rows) {
+		return m, nil
+	}
+	row := rows[m.cursor].row
+
+	if !a.Detach {
+		m.chosen = true
+		m.chosenRow = row
+		m.chosenAction = &a
+		m.quitting = true
+		return m, tea.Quit
+	}
+	if err := m.runner.Start(a, row.Project.Path); err != nil {
+		m.message = fmt.Sprintf("%s: %v", a.Name, err)
 	}
 	return m, nil
 }

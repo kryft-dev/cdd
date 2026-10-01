@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/kryft-dev/cdd/internal/action"
 	"github.com/kryft-dev/cdd/internal/git"
 	"github.com/kryft-dev/cdd/internal/match"
 )
@@ -36,6 +37,9 @@ type Model struct {
 	vim    bool
 	layout Layout
 
+	actions map[string]action.Action // keyed by Action.Key
+	runner  action.Runner
+
 	query  string
 	focus  focus
 	cursor int // index into the current visible (filtered) rows
@@ -50,9 +54,14 @@ type Model struct {
 	// it has.
 	paletteSettled bool
 
-	chosen    bool
-	chosenRow Row
-	quitting  bool
+	// message is the one line the footer shows in place of the key hints
+	// until the next key press: a detached Action's failure to start.
+	message string
+
+	chosen       bool
+	chosenRow    Row
+	chosenAction *action.Action
+	quitting     bool
 }
 
 // NewModel builds the Picker's initial Model from rows already in History
@@ -66,7 +75,19 @@ func NewModel(rows []Row, status StatusFunc, opts Options) Model {
 	if layout == "" {
 		layout = LayoutList
 	}
+	actions := make(map[string]action.Action, len(opts.Actions))
+	for _, a := range opts.Actions {
+		if a.Key != "" {
+			actions[a.Key] = a
+		}
+	}
+	runner := opts.Runner
+	if runner == nil {
+		runner = action.ExecRunner{}
+	}
 	return Model{
+		actions:  actions,
+		runner:   runner,
 		rows:     rows,
 		status:   status,
 		vim:      opts.Vim,
@@ -82,11 +103,17 @@ func NewModel(rows []Row, status StatusFunc, opts Options) Model {
 	}
 }
 
-// Chosen returns the Row an "enter" press has chosen, and whether one has
+// Chosen returns the Row an "enter" press or an Action key has chosen, and whether one has
 // been chosen yet. It lets a caller (or a test) read the outcome without
 // waiting for the Bubble Tea runtime to hand back the final Model.
 func (m Model) Chosen() (Row, bool) {
 	return m.chosenRow, m.chosen
+}
+
+// ChosenAction returns the Action that chose the Row, or nil when it was a
+// plain Jump.
+func (m Model) ChosenAction() *action.Action {
+	return m.chosenAction
 }
 
 // statusResultMsg is the result of one StatusFunc call, keyed by the
