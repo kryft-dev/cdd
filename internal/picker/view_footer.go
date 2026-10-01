@@ -25,10 +25,14 @@ func (m Model) footerView(t theme, width, matched int, met Metrics) string {
 }
 
 // keysLine is the footer's one line: on the left the message, else the key
-// hints, and on the right the match count. A message replaces the hints
+// hints, and on the right the match count, with a pointer to the help
+// overlay ahead of it where `?` opens one. A message replaces the hints
 // until the next key press.
 func (m Model) keysLine(t theme, width, matched int) string {
 	right := t.muted_().Render(fmt.Sprintf("%d/%d", matched, len(m.rows)))
+	if m.helpAvailable() && !m.noHints {
+		right = t.keysLine("?", "help") + "  " + right
+	}
 	room := max(width-lipgloss.Width(right)-1, 1)
 
 	var left string

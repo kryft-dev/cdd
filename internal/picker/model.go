@@ -40,6 +40,7 @@ type Model struct {
 	actions map[string]action.Action // keyed by Action.Key
 	hints   []action.Action          // the bound Actions in hint order
 	noHints bool                     // Options.HideHints
+	help    bool                     // the vim help overlay is open
 	runner  action.Runner
 	copy    func(text string) (bool, error)
 

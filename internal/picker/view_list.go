@@ -16,6 +16,9 @@ const selBar = "▌"
 func (m Model) listFrame(t theme, now time.Time) string {
 	rows := m.visibleRows()
 	width, height := m.frameSize()
+	if m.help {
+		return m.helpView(t, width, height)
+	}
 	met := m.computeMetrics(rows, now, width, height)
 
 	var b strings.Builder
