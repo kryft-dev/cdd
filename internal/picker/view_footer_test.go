@@ -127,3 +127,21 @@ func TestFooter_ErrorAndConfirmationAreDrawnInDifferentColours(t *testing.T) {
 		t.Errorf("error and confirmation share a style:\n%q\n%q", last(bad), last(good))
 	}
 }
+
+func TestFooter_HideHintsKeepsTheCountAndMessages(t *testing.T) {
+	r := &fakeRunner{err: errBoom}
+	web := action.Action{Name: "web", Key: "ctrl+w", Run: "open", Detach: true}
+	m := twoRowModel(picker.Options{Actions: []action.Action{jump, web}, Runner: r, HideHints: true})
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 40})
+	next, _ = next.(picker.Model).Update(tea.BackgroundColorMsg{Color: lipgloss.Color("#0D1117")})
+	m = next.(picker.Model)
+
+	if got := strings.TrimSpace(footerOf(m)); got != "2/2" {
+		t.Errorf("footer = %q, want only the count", got)
+	}
+
+	m, _ = press(m, tea.KeyPressMsg{Code: 'w', Mod: tea.ModCtrl})
+	if line := footerOf(m); !strings.HasPrefix(line, "web: ") {
+		t.Errorf("footer = %q, want the failure still shown", line)
+	}
+}

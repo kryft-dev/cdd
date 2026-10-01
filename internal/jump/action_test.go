@@ -164,3 +164,20 @@ func TestResolve_PickerGetsTheResolvedActionsAndARecordingRunner(t *testing.T) {
 		t.Errorf("Visits = %d, want %d after a failed start", n, before)
 	}
 }
+
+func TestResolve_PickerHidesHintsWhenConfigSaysSo(t *testing.T) {
+	for _, hints := range []bool{true, false} {
+		hist := newHistory(t)
+		cfg, root := mkProjects(t, hist, "tools/cdd")
+		path := filepath.Join(root, "tools", "cdd")
+		cfg.Picker.Hints = hints
+
+		var opts picker.Options
+		if _, err := jump.Resolve(context.Background(), cfg, hist, pickWith(action.Action{Name: "jump", Jump: true}, path, &opts), &fakeRunner{}); err != nil {
+			t.Fatalf("Resolve: %v", err)
+		}
+		if opts.HideHints == hints {
+			t.Errorf("Picker.Hints = %v: Options.HideHints = %v", hints, opts.HideHints)
+		}
+	}
+}
