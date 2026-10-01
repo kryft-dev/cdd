@@ -112,7 +112,7 @@ Default key map:
 | type | filter the list |
 | `↑` / `ctrl+p` | move up |
 | `↓` / `ctrl+n` | move down |
-| `enter` | Jump to the selected Project |
+| `enter` | Jump to the selected Project (the `jump` Action) |
 | `esc` / `ctrl+c` | cancel |
 | `ctrl+u` | clear the filter |
 
@@ -126,7 +126,7 @@ Vim key map (`keys.vim = true`): the list is focused on open.
 | `f` / `/` | focus the filter |
 | `esc` (filter) | return to the list, keeping the query |
 | `esc` / `q` | cancel |
-| `enter` | Jump to the selected Project |
+| `enter` | Jump to the selected Project (the `jump` Action) |
 
 ### Actions
 
@@ -165,7 +165,22 @@ Two Actions on one key is an error, and `key = ""` leaves an Action
 unbound. Each of these is reported with the line it is on.
 
 An `[actions.<name>]` table whose name is a built-in Action overrides only
-the fields it sets. There are no built-in Actions yet.
+the fields it sets. The only built-in Action is `jump`, which Jumps to the
+Project and is bound to `enter`, in both key maps and in the vim filter
+focus. Rebind it, or give `enter` to another Action:
+
+```toml
+[actions.jump]
+key = "alt+enter"        # Jump moves here
+
+[actions.code]
+key    = "enter"         # Enter now opens VS Code
+run    = "code {path}"
+detach = true
+```
+
+Rebinding `enter` without moving `jump` leaves `jump` unbound, which is
+allowed. `key = ""` on `jump` unbinds it outright.
 
 ### Layout
 

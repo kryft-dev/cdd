@@ -103,15 +103,14 @@ func NewModel(rows []Row, status StatusFunc, opts Options) Model {
 	}
 }
 
-// Chosen returns the Row an "enter" press or an Action key has chosen, and whether one has
+// Chosen returns the Row an Action key has chosen, and whether one has
 // been chosen yet. It lets a caller (or a test) read the outcome without
 // waiting for the Bubble Tea runtime to hand back the final Model.
 func (m Model) Chosen() (Row, bool) {
 	return m.chosenRow, m.chosen
 }
 
-// ChosenAction returns the Action that chose the Row, or nil when it was a
-// plain Jump.
+// ChosenAction returns the Action that chose the Row, or nil when none has.
 func (m Model) ChosenAction() *action.Action {
 	return m.chosenAction
 }
