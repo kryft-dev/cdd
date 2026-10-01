@@ -8,7 +8,7 @@ import (
 
 func TestBuiltins_CopyIsBoundToCtrlYWithNoCommand(t *testing.T) {
 	got := builtin(t, "copy")
-	want := action.Action{Name: "copy", Key: "ctrl+y", Copy: true}
+	want := action.Action{Name: "copy", Key: "ctrl+y", Internal: action.InternalCopy}
 	if got != want {
 		t.Errorf("copy = %+v, want %+v", got, want)
 	}
@@ -30,13 +30,13 @@ func TestMerge_CopyKeepsCopyUntilTheUserSetsRun(t *testing.T) {
 		return action.Action{}
 	}
 
-	if a := merged(action.Override{Key: ptr("ctrl+k")}); !a.Copy || a.Key != "ctrl+k" {
+	if a := merged(action.Override{Key: ptr("ctrl+k")}); a.Internal != action.InternalCopy || a.Key != "ctrl+k" {
 		t.Errorf("rebound = %+v, want still Copy on ctrl+k", a)
 	}
-	if a := merged(action.Override{Key: ptr("")}); !a.Copy || a.Key != "" {
+	if a := merged(action.Override{Key: ptr("")}); a.Internal != action.InternalCopy || a.Key != "" {
 		t.Errorf("unbound = %+v, want still Copy, no key", a)
 	}
-	if a := merged(action.Override{Run: ptr("wl-copy {path}"), Detach: ptr(true)}); a.Copy || a.Run != "wl-copy {path}" || !a.Detach {
+	if a := merged(action.Override{Run: ptr("wl-copy {path}"), Detach: ptr(true)}); a.Internal != "" || a.Run != "wl-copy {path}" || !a.Detach {
 		t.Errorf("run override = %+v, want a plain command, not Copy", a)
 	}
 }
