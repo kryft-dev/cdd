@@ -29,8 +29,9 @@ type hit struct {
 	matches []int // rune indexes into the matched string, for highlighting
 }
 
-// Model is the Picker's Bubble Tea Model. It never mutates rows: filtering
-// and grouping are recomputed from it as the query and window size change.
+// Model is the Picker's Bubble Tea Model. It never mutates rows in place:
+// filtering and grouping are recomputed from it as the query and window
+// size change, and forgetting a Project swaps in a copy without its row.
 type Model struct {
 	rows   []Row
 	status StatusFunc
@@ -43,6 +44,8 @@ type Model struct {
 	help    bool                     // the vim help overlay is open
 	runner  action.Runner
 	copy    func(text string) (bool, error)
+	forget  func(path string) error // Options.Forget
+	confirm *Row                    // the row the forget prompt is asking about
 
 	query  string
 	focus  focus
@@ -109,6 +112,7 @@ func NewModel(rows []Row, status StatusFunc, opts Options) Model {
 		noHints:  opts.HideHints,
 		runner:   runner,
 		copy:     copyFn,
+		forget:   opts.Forget,
 		rows:     rows,
 		status:   status,
 		vim:      opts.Vim,

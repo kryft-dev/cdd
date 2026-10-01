@@ -26,8 +26,8 @@ func (m Model) footerView(t theme, width, matched int, met Metrics) string {
 
 // keysLine is the footer's one line: on the left the message, else the key
 // hints, and on the right the match count, with a pointer to the help
-// overlay ahead of it where `?` opens one. A message replaces the hints
-// until the next key press.
+// overlay ahead of it where `?` opens one. A message, or the forget
+// prompt, replaces the hints until the next key press.
 func (m Model) keysLine(t theme, width, matched int) string {
 	right := t.muted_().Render(fmt.Sprintf("%d/%d", matched, len(m.rows)))
 	if m.helpAvailable() && !m.noHints {
@@ -37,6 +37,8 @@ func (m Model) keysLine(t theme, width, matched int) string {
 
 	var left string
 	switch {
+	case m.confirm != nil:
+		left = t.fg(t.accent).Render(truncateName("forget "+m.confirm.Project.Name+"? y/n", room))
 	case m.message != "":
 		left = t.messageLine(m.message, m.messageOK, room)
 	case !m.noHints:
