@@ -60,7 +60,7 @@ func Resolve(ctx context.Context, cfg config.Config, hist *history.History, stor
 		return "", fmt.Errorf("jump: %w", err)
 	}
 
-	choice, err := choose(cfg, listed(latest, marks), counts, pick, recorder{run, hist})
+	choice, err := choose(cfg, listed(latest, marks), counts, pick, recorder{run, hist}, store.Forget)
 	if err != nil {
 		return "", err
 	}
@@ -114,8 +114,8 @@ func (r recorder) Start(a action.Action, path string) error {
 }
 
 // choose runs the Picker over latest, starting its detached Actions with
-// run, and returns what it chose.
-func choose(cfg config.Config, latest []history.Visit, counts map[string]int, pick PickFunc, run action.Runner) (picker.Choice, error) {
+// run and forgetting Projects with forget, and returns what it chose.
+func choose(cfg config.Config, latest []history.Visit, counts map[string]int, pick PickFunc, run action.Runner, forget func(string) error) (picker.Choice, error) {
 	home, _ := os.UserHomeDir()
 	rows := toRows(latest, counts, home)
 	status := func(c context.Context, dir string) git.Status {
@@ -129,6 +129,7 @@ func choose(cfg config.Config, latest []history.Visit, counts map[string]int, pi
 		Actions:   cfg.ResolvedActions,
 		HideHints: !cfg.Picker.Hints,
 		Runner:    run,
+		Forget:    forget,
 	}
 	choice, ok, err := pick(rows, status, opts)
 	if err != nil {
