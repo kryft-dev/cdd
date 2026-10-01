@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -16,17 +17,17 @@ import (
 const initHint = `cdd: no Wrapper installed, so this path was only printed.
 cdd: add "cdd init <shell> | source" (or the "eval" form) to your shell config so cdd can Jump.`
 
-// newPickCmd builds "cdd pick [query]".
+// newPickCmd builds "cdd pick [query...]".
 func newPickCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "pick [query]",
+		Use:   "pick [query...]",
 		Short: "prints the chosen Project's path; the Wrapper turns it into a Jump",
-		Args:  cobra.MaximumNArgs(1),
+		Args:  cobra.ArbitraryArgs,
 		RunE:  pickRunE,
 	}
 }
 
-// pickRunE implements both "cdd pick [query]" and the bare "cdd" root
+// pickRunE implements both "cdd pick [query...]" and the bare "cdd" root
 // command: load config, open History at its default path, resolve the
 // query to a Project via jump.Resolve and picker.Run, and print the
 // chosen absolute path plus a newline to stdout and nothing else.
@@ -35,10 +36,8 @@ func newPickCmd() *cobra.Command {
 // 130 with no message. Any other error is reported by Run as exit 1 with
 // the error's message on stderr.
 func pickRunE(cmd *cobra.Command, args []string) error {
-	query := ""
-	if len(args) > 0 {
-		query = args[0]
-	}
+	// "cdd baz br" is the query "baz br": parent word, then name word.
+	query := strings.Join(args, " ")
 
 	cfg, err := config.Load()
 	if err != nil {

@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"bytes"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -140,12 +141,19 @@ func TestInitEachShell(t *testing.T) {
 	}
 }
 
-// TestPickUsageError checks that "cdd pick" with more than one argument
-// exits 2.
-func TestPickUsageError(t *testing.T) {
-	code, _, _ := runCLI(t, "pick", "one", "two")
-	if code != 2 {
-		t.Errorf("exit code = %d, want 2", code)
+// TestPickAcceptsWords checks that "cdd pick" takes a query of several
+// words ("cdd baz br") rather than rejecting the extra arguments as a usage
+// error. With no History and no terminal it fails later, exiting 1.
+func TestPickAcceptsWords(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("XDG_STATE_HOME", filepath.Join(home, ".local", "state"))
+	t.Setenv("XDG_DATA_HOME", filepath.Join(home, ".local", "share"))
+
+	code, _, stderr := runCLI(t, "pick", "baz", "br")
+	if code == 2 {
+		t.Errorf("exit code = 2 (usage error), want the words accepted (stderr: %q)", stderr)
 	}
 }
 
