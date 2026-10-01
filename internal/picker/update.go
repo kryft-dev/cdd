@@ -54,7 +54,7 @@ func (m Model) updateKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 // updateKeyDefault implements the default key map: typing filters, arrow
-// keys (and ctrl+p/ctrl+n) move, enter chooses, esc cancels, ctrl+u clears.
+// keys (and ctrl+p/ctrl+n) move, esc cancels, ctrl+u clears.
 func (m Model) updateKeyDefault(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "up", "ctrl+p":
@@ -63,8 +63,6 @@ func (m Model) updateKeyDefault(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "down", "ctrl+n":
 		m.moveCursor(1)
 		return m, nil
-	case "enter":
-		return m.choose()
 	case "esc", "ctrl+c":
 		return m.cancel()
 	case "ctrl+u":
@@ -86,15 +84,13 @@ func (m Model) updateKeyDefault(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 // updateKeyVim implements the vim key map. The list is focused on open;
 // j/k move, g/G jump to the ends, f or / focuses the filter, esc in the
 // filter returns to the list keeping the query, esc or q on the list
-// cancels, enter chooses from either mode.
+// cancels.
 func (m Model) updateKeyVim(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.focus == focusFilter {
 		switch msg.String() {
 		case "esc":
 			m.focus = focusList
 			return m, nil
-		case "enter":
-			return m.choose()
 		case "backspace":
 			m.backspace()
 			return m, nil
@@ -123,8 +119,6 @@ func (m Model) updateKeyVim(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "f", "/":
 		m.focus = focusFilter
 		return m, nil
-	case "enter":
-		return m.choose()
 	case "esc", "q", "ctrl+c":
 		return m.cancel()
 	}
@@ -200,17 +194,6 @@ func (m *Model) backspace() {
 	r := []rune(m.query)
 	m.query = string(r[:len(r)-1])
 	m.cursor = 0
-}
-
-// choose selects the row under the cursor, when there is one, and quits.
-func (m Model) choose() (tea.Model, tea.Cmd) {
-	rows := m.visibleRows()
-	if m.cursor >= 0 && m.cursor < len(rows) {
-		m.chosen = true
-		m.chosenRow = rows[m.cursor].row
-	}
-	m.quitting = true
-	return m, tea.Quit
 }
 
 // cancel quits without a choice.

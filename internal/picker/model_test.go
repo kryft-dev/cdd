@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/kryft-dev/cdd/internal/action"
 	"github.com/kryft-dev/cdd/internal/git"
 	"github.com/kryft-dev/cdd/internal/picker"
 )
@@ -61,7 +62,7 @@ func TestModel_FuzzyFilter(t *testing.T) {
 		{Project: picker.Project{Dir: "~/work/", Name: "billing", Path: "/root/work/billing"}},
 		{Project: picker.Project{Dir: "~/oss/", Name: "bubbletea", Path: "/root/oss/bubbletea"}},
 	}
-	m := picker.NewModel(rows, noopStatus, picker.Options{})
+	m := picker.NewModel(rows, noopStatus, picker.Options{Actions: action.Builtins()})
 	next, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
 	m = next.(picker.Model)
 

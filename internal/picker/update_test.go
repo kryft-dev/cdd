@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/kryft-dev/cdd/internal/action"
 	"github.com/kryft-dev/cdd/internal/git"
 	"github.com/kryft-dev/cdd/internal/picker"
 )
@@ -20,7 +21,7 @@ func twoRowModel(opts picker.Options) picker.Model {
 }
 
 func TestModel_Update_EscCancels(t *testing.T) {
-	m := twoRowModel(picker.Options{})
+	m := twoRowModel(picker.Options{Actions: action.Builtins()})
 	next, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	final := next.(picker.Model)
 
@@ -33,7 +34,7 @@ func TestModel_Update_EscCancels(t *testing.T) {
 }
 
 func TestModel_Update_CtrlUClearsFilter(t *testing.T) {
-	m := twoRowModel(picker.Options{Query: "alpha"})
+	m := twoRowModel(picker.Options{Query: "alpha", Actions: action.Builtins()})
 	next, _ := m.Update(tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl})
 	final := next.(picker.Model)
 
@@ -129,7 +130,7 @@ func TestModel_Update_StatusResult(t *testing.T) {
 }
 
 func TestModel_Update_VimKeys(t *testing.T) {
-	m := twoRowModel(picker.Options{Vim: true})
+	m := twoRowModel(picker.Options{Vim: true, Actions: action.Builtins()})
 
 	next, _ := m.Update(tea.KeyPressMsg{Text: "j"})
 	m = next.(picker.Model)
@@ -146,7 +147,7 @@ func TestModel_Update_VimKeys(t *testing.T) {
 }
 
 func TestModel_Update_VimQuitsOnQ(t *testing.T) {
-	m := twoRowModel(picker.Options{Vim: true})
+	m := twoRowModel(picker.Options{Vim: true, Actions: action.Builtins()})
 	next, cmd := m.Update(tea.KeyPressMsg{Text: "q"})
 	final := next.(picker.Model)
 

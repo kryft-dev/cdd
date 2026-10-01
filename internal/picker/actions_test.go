@@ -41,6 +41,9 @@ func press(m picker.Model, msg tea.KeyPressMsg) (picker.Model, tea.Cmd) {
 	return next.(picker.Model), cmd
 }
 
+// jump is the built-in Jump, bound to enter.
+var jump = action.Builtins()[0]
+
 var (
 	ctrlV = tea.KeyPressMsg{Code: 'v', Mod: tea.ModCtrl}
 	ctrlL = tea.KeyPressMsg{Code: 'l', Mod: tea.ModCtrl}
@@ -96,7 +99,7 @@ func TestModel_Action_DetachedFailureShowsOnTheFooterUntilTheNextKey(t *testing.
 
 func TestModel_Action_KeyOverridesANavigationKey(t *testing.T) {
 	r := &fakeRunner{}
-	m := actionModel(r, false, action.Action{Name: "code", Key: "ctrl+n", Run: "code", Detach: true})
+	m := actionModel(r, false, jump, action.Action{Name: "code", Key: "ctrl+n", Run: "code", Detach: true})
 
 	m, _ = press(m, tea.KeyPressMsg{Code: 'n', Mod: tea.ModCtrl})
 	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter}) // the cursor did not move
@@ -110,7 +113,7 @@ func TestModel_Action_KeyOverridesANavigationKey(t *testing.T) {
 }
 
 func TestModel_Action_ArrowKeysStillMoveWhenCtrlNIsTaken(t *testing.T) {
-	m := actionModel(&fakeRunner{}, false, action.Action{Name: "code", Key: "ctrl+n", Run: "code", Detach: true})
+	m := actionModel(&fakeRunner{}, false, jump, action.Action{Name: "code", Key: "ctrl+n", Run: "code", Detach: true})
 
 	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyDown})
 	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -137,6 +140,71 @@ func TestModel_Action_PlainKeyFiresOnlyInVimListFocus(t *testing.T) {
 	}
 	if v := plain(m.View().Content); !strings.Contains(v, "❯ w") {
 		t.Errorf("filter did not take the w:\n%s", v)
+	}
+}
+
+var (
+	enter    = tea.KeyPressMsg{Code: tea.KeyEnter}
+	altEnter = tea.KeyPressMsg{Code: tea.KeyEnter, Mod: tea.ModAlt}
+)
+
+func TestModel_Jump_EnterJumpsInBothKeyMapsAndBothVimFocuses(t *testing.T) {
+	tests := []struct {
+		name string
+		vim  bool
+		keys []tea.KeyPressMsg
+	}{
+		{"default", false, nil},
+		{"vim list focus", true, nil},
+		{"vim filter focus", true, []tea.KeyPressMsg{{Code: 'f', Text: "f"}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := actionModel(&fakeRunner{}, tt.vim, action.Builtins()...)
+			for _, k := range tt.keys {
+				m, _ = press(m, k)
+			}
+
+			m, cmd := press(m, enter)
+
+			row, ok := m.Chosen()
+			if !ok || row.Project.Name != "alpha" || cmd == nil {
+				t.Errorf("Chosen = %q, %v, Cmd = %v, want alpha and a quit", row.Project.Name, ok, cmd != nil)
+			}
+			if got := m.ChosenAction(); got == nil || got.Name != "jump" || !got.Jump {
+				t.Errorf("ChosenAction = %v, want jump", got)
+			}
+		})
+	}
+}
+
+func TestModel_Jump_EnterDoesNothingWhenNoActionIsBoundToIt(t *testing.T) {
+	m := actionModel(&fakeRunner{}, false)
+
+	m, cmd := press(m, enter)
+
+	if _, ok := m.Chosen(); ok || cmd != nil {
+		t.Errorf("Chosen ok = %v, Cmd = %v, want enter to be unbound", ok, cmd != nil)
+	}
+}
+
+func TestModel_Jump_MovedToAnotherKeyJumpsThere(t *testing.T) {
+	r := &fakeRunner{}
+	code := action.Action{Name: "code", Key: "enter", Run: "code {path}", Detach: true}
+	moved := action.Action{Name: "jump", Key: "alt+enter", Jump: true}
+	m := actionModel(r, false, moved, code)
+
+	m, _ = press(m, enter)
+	if len(r.started) != 1 || r.started[0] != "code /root/work/alpha" {
+		t.Fatalf("started = %v, want enter to run code", r.started)
+	}
+	if _, ok := m.Chosen(); ok {
+		t.Fatal("enter Jumped although code owns it")
+	}
+
+	m, _ = press(m, altEnter)
+	if got := m.ChosenAction(); got == nil || got.Name != "jump" {
+		t.Errorf("ChosenAction = %v, want jump on alt+enter", got)
 	}
 }
 
