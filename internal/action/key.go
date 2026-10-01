@@ -31,13 +31,14 @@ func NormalizeKey(key string, vim bool) (string, error) {
 		return "", nil
 	}
 
-	parts := strings.Split(key, "+")
-	base := parts[len(parts)-1]
-	if base == "" && len(parts) > 1 {
-		base = "+" // "ctrl++" names the plus key itself
-		parts = parts[:len(parts)-2]
-	} else {
-		parts = parts[:len(parts)-1]
+	parts, base := strings.Split(key, "+"), ""
+	switch {
+	case key == "+":
+		parts, base = nil, "+"
+	case strings.HasSuffix(key, "++"): // "alt++" names the plus key itself
+		parts, base = strings.Split(strings.TrimSuffix(key, "++"), "+"), "+"
+	default:
+		parts, base = parts[:len(parts)-1], parts[len(parts)-1]
 	}
 
 	var mods []string

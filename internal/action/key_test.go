@@ -23,6 +23,7 @@ func TestNormalizeKey(t *testing.T) {
 		{key: "shift+tab", want: "shift+tab"},
 		{key: "ctrl++", err: true},
 		{key: "alt++", want: "alt++"},
+		{key: "ctrl+", err: true},
 		{key: "f21", err: true},
 		{key: "f", err: true},
 		{key: "ctrl+1", err: true},
