@@ -25,6 +25,12 @@ archives:
   - id: cdd
     formats: ["tar.gz"]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    # Setting files replaces GoReleaser's default list, so name README and
+    # LICENSE too.
+    files:
+      - README.md
+      - LICENSE
+      - config.example.toml
 
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
