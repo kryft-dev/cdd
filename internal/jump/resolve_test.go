@@ -275,3 +275,25 @@ func assertRecorded(t *testing.T, hist *history.History, path string) {
 	}
 	t.Errorf("History has no Visit for %q after Resolve", path)
 }
+
+// TestResolve_WordQueryOpensPicker checks that a query with a space is
+// always a parent-then-name filter for the Picker, never the exact-match
+// shortcut, even when a Project's path happens to end in it.
+func TestResolve_WordQueryOpensPicker(t *testing.T) {
+	hist := newHistory(t)
+	cfg, root := mkProjects(t, hist, "tools/my cdd")
+	want := filepath.Join(root, "tools", "my cdd")
+
+	var rows []picker.Row
+	var opts picker.Options
+	got, err := jump.Resolve(context.Background(), cfg, hist, "my cdd", capturePick(&rows, &opts, want))
+	if err != nil {
+		t.Fatalf("Resolve: unexpected error: %v", err)
+	}
+	if opts.Query != "my cdd" {
+		t.Errorf("Picker Query = %q, want %q (the shortcut skipped the Picker)", opts.Query, "my cdd")
+	}
+	if got != want {
+		t.Errorf("Resolve = %q, want %q", got, want)
+	}
+}

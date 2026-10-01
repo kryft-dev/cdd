@@ -98,10 +98,11 @@ func choose(cfg config.Config, latest []history.Visit, counts map[string]int, qu
 // exactMatch reports whether query names exactly one Project in latest:
 // its name, or any trailing run of its path ("cdd", "tools/cdd"), or the
 // whole path. A query matching two or more Projects, or none, is not an
-// exact match.
+// exact match, and neither is one holding a space: that is a parent-then-
+// name filter for the Picker.
 func exactMatch(latest []history.Visit, query string) (string, bool) {
 	query = strings.TrimSuffix(query, "/")
-	if query == "" {
+	if query == "" || strings.ContainsRune(query, ' ') {
 		return "", false
 	}
 
