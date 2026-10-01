@@ -72,6 +72,11 @@ func (e *Error) Unwrap() error { return e.Err }
 // result: the built-ins in their own order, then the user's other Actions
 // sorted by name. It fails on the first invalid Action with an *Error.
 //
+// A key a user table sets wins over an Action that only holds it by default,
+// which is left unbound as if the user had set its key to "". Two Actions
+// whose keys the user set to the same key are an error, as are two that
+// both hold it by default.
+//
 // vim says whether the vim key map is on, the only one where a plain
 // printable key may be bound.
 func Merge(user map[string]Override, vim bool) ([]Action, error) {
@@ -123,7 +128,17 @@ func Merge(user map[string]Override, vim bool) ([]Action, error) {
 		if key == "" {
 			continue
 		}
-		if prev, ok := owner[key]; ok {
+		prev, clash := owner[key]
+		switch {
+		case !clash:
+		case user[a.Name].Key != nil && user[prev].Key != nil:
+			return nil, &Error{a.Name, "key", fmt.Errorf("%q is already bound to %q", key, prev)}
+		case user[a.Name].Key != nil:
+			out[index[prev]].Key = ""
+		case user[prev].Key != nil:
+			a.Key = ""
+			continue
+		default:
 			return nil, &Error{a.Name, "key", fmt.Errorf("%q is already bound to %q", key, prev)}
 		}
 		owner[key] = a.Name
