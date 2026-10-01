@@ -51,8 +51,8 @@ func TestModel_Copy_UsesTheClipboardProgramAndStaysOpen(t *testing.T) {
 func TestModel_Copy_WithoutAProgramFallsBackToOSC52(t *testing.T) {
 	m := copyModel(func(string) (bool, error) { return false, nil })
 
-	m, cmd := press(m, tea.KeyPressMsg{Code: tea.KeyDown})
-	m, cmd = press(m, ctrlY)
+	m, _ = press(m, tea.KeyPressMsg{Code: tea.KeyDown})
+	m, cmd := press(m, ctrlY)
 
 	if cmd == nil {
 		t.Fatal("Cmd = nil, want the OSC 52 clipboard command")
