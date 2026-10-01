@@ -13,6 +13,8 @@ import (
 	"strings"
 
 	toml "github.com/pelletier/go-toml/v2"
+
+	"github.com/kryft-dev/cdd/internal/action"
 )
 
 // Config is cdd's configuration, decoded from config.toml.
@@ -36,6 +38,14 @@ type Config struct {
 
 	// Picker configures the Picker's appearance.
 	Picker Picker `toml:"picker"`
+
+	// Actions holds the [actions.<name>] tables: new Actions, and
+	// overrides of built-in ones by name.
+	Actions map[string]action.Override `toml:"actions"`
+
+	// ResolvedActions is every Action the Picker binds: the built-ins with
+	// Actions applied on top. LoadFrom fills it in.
+	ResolvedActions []action.Action `toml:"-"`
 }
 
 // History configures cdd's History of Visits.
@@ -99,7 +109,8 @@ func LoadFrom(path string) (Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return cfg, nil
+			err := cfg.resolveActions(path, nil)
+			return cfg, err
 		}
 		return Config{}, fmt.Errorf("config: read %s: %w", path, err)
 	}
@@ -111,6 +122,9 @@ func LoadFrom(path string) (Config, error) {
 	}
 
 	if err := cfg.validate(path); err != nil {
+		return Config{}, err
+	}
+	if err := cfg.resolveActions(path, data); err != nil {
 		return Config{}, err
 	}
 
