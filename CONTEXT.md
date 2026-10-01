@@ -33,7 +33,7 @@ The interactive screen that lists Projects and lets the user choose one to Jump 
 _Avoid_: Menu, list, finder, selector
 
 **Query**:
-The text that filters the Picker, typed or given to `cdd`. Split on spaces into words: the last word matches a Project's name and every earlier word matches, in order, within its parent directory; a query with no space matches the whole shown path. Each word matches fuzzily and tolerates a typo or two by its length.
+The text typed into the Picker to filter it. Split on spaces into words: the last word matches a Project's name and every earlier word matches, in order, within its parent directory; a query with no space matches the whole shown path. Each word matches fuzzily and tolerates a typo or two by its length.
 _Avoid_: Search, filter string, pattern
 
 **Layout**:
