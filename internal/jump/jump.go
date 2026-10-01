@@ -130,10 +130,11 @@ func choose(cfg config.Config, latest []history.Visit, counts map[string]int, pi
 	}
 
 	opts := picker.Options{
-		Vim:     cfg.Keys.Vim,
-		Layout:  picker.Layout(cfg.Picker.Layout),
-		Actions: cfg.ResolvedActions,
-		Runner:  run,
+		Vim:       cfg.Keys.Vim,
+		Layout:    picker.Layout(cfg.Picker.Layout),
+		Actions:   cfg.ResolvedActions,
+		HideHints: !cfg.Picker.Hints,
+		Runner:    run,
 	}
 	choice, ok, err := pick(rows, status, opts)
 	if err != nil {
