@@ -165,7 +165,7 @@ func (m Model) runAction(a action.Action) (tea.Model, tea.Cmd) {
 	}
 	row := rows[m.cursor].row
 
-	if a.Copy {
+	if a.Internal == action.InternalCopy {
 		return m.copyPath(a, row.Project.Path)
 	}
 	if !a.Detach {

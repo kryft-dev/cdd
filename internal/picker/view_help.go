@@ -61,7 +61,7 @@ func (m Model) helpView(t theme, width, height int) string {
 // describe says in a few words what running a does.
 func describe(a action.Action) string {
 	switch {
-	case a.Copy:
+	case a.Internal == action.InternalCopy:
 		return "copies the path"
 	case a.Run != "":
 		return a.Run
