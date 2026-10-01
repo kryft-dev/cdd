@@ -1,0 +1,88 @@
+# cdd config.toml, with every key and its default.
+#
+# Write this to the config path with `cdd config init`, and open it with
+# `cdd config edit`. The file is optional, and so is every key in it.
+
+# Glob patterns (filepath.Match semantics) for directories `cdd scan` skips,
+# along with everything below them. A pattern containing "/" is matched
+# against the directory's absolute path, any other against its name alone,
+# as in .gitignore. A leading "~" is expanded to your home directory; "$VAR"
+# is left as-is.
+# exclude = ["node_modules", "~/go/pkg/*"]
+exclude = []
+
+# When false, `cdd scan` skips hidden directories.
+include_hidden = false
+
+[history]
+# The maximum number of Visits kept in History. Must be at least 1.
+max_visits = 1000
+
+[keys]
+# When true, the Picker opens with the list focused and uses vim-style keys:
+# j/k move, f focuses the filter, esc returns to the list, ? opens a help
+# overlay.
+vim = false
+
+[picker]
+# Which layout the Picker draws. "list", a flat fzf-style list, is the only
+# one for now. Any other value is a config error.
+layout = "list"
+
+# When true, the last line lists the keys of your Actions. false hides them,
+# leaving the match count and messages.
+hints = true
+
+# Actions
+#
+# An Action is a named command bound to a key and run on the selected
+# Project. Built-in Actions exist unless you override them by name:
+#
+#   jump    enter   Jump to the Project
+#   files   ctrl+o  open the Project in the file manager (detached)
+#   editor  ctrl+e  open the Project in $VISUAL, then $EDITOR, then vi
+#   remote  ctrl+g  open the git remote's home page (detached)
+#   copy    ctrl+y  copy the Project's path to the clipboard
+#   forget  ctrl+d  forget the Project, after a y/n confirm
+#
+# Each [actions.<name>] table takes:
+#   key    the Picker key that runs it ("ctrl+x", "alt+x", "f1", ...), or ""
+#          to unbind it. A binding displaces a built-in on the same key.
+#          esc and ctrl+c can never be bound. A plain printable key (a, ?)
+#          is an error unless keys.vim = true.
+#   run    a shell command, handed to `sh -c` with the Project as the working
+#          directory and $CDD_PATH set to its path. {path} stands for the
+#          shell-quoted absolute path, {remote} for the shell-quoted home
+#          page URL of the git remote. Use {path}, not $path, which zsh ties
+#          to $PATH.
+#   jump   when true, Jump to the Project once run exits successfully.
+#   detach when true, start run in its own session without waiting and keep
+#          the Picker open. Otherwise the Picker quits and run gets your
+#          terminal, so a TUI works.
+
+# Open the Project in VS Code, without leaving the Picker.
+# [actions.code]
+# key    = "ctrl+v"
+# run    = "code {path}"
+# detach = true
+
+# Run a TUI in the Project; it runs in the Project's directory, so it needs
+# no {path}.
+# [actions.lazygit]
+# key = "ctrl+l"
+# run = "lazygit"
+
+# Remap enter: open the editor on enter and move the Jump to ctrl+t. The
+# editor's binding on enter displaces the Jump's, so move the Jump first.
+# [actions.jump]
+# key = "ctrl+t"
+# [actions.editor]
+# key = "enter"
+
+# Override a built-in's key: copy on ctrl+x instead of ctrl+y.
+# [actions.copy]
+# key = "ctrl+x"
+
+# Unbind a built-in, so a stray key press cannot forget a Project.
+# [actions.forget]
+# key = ""
