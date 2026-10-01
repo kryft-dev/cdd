@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/kryft-dev/cdd/internal/action"
 	"github.com/kryft-dev/cdd/internal/picker"
 )
 
@@ -22,7 +23,7 @@ var allLayouts = []picker.Layout{picker.LayoutList}
 // terminal with a settled palette is the state every View test starts
 // from, since nothing is drawn before the palette settles.
 func sizedModel(rows []picker.Row, layout picker.Layout, width, height int) picker.Model {
-	m := picker.NewModel(rows, noopStatus, picker.Options{Layout: layout})
+	m := picker.NewModel(rows, noopStatus, picker.Options{Layout: layout, Actions: action.Builtins()})
 	next, _ := m.Update(tea.WindowSizeMsg{Width: width, Height: height})
 	next, _ = next.(picker.Model).Update(tea.BackgroundColorMsg{Color: lipgloss.Color("#0D1117")})
 	return next.(picker.Model)
@@ -72,7 +73,7 @@ func TestModel_View_ListWindowedToHeight(t *testing.T) {
 
 	sawKeys := false
 	for _, l := range lines {
-		if strings.Contains(l, "move") && strings.Contains(l, "jump") {
+		if strings.Contains(plain(l), "enter jump") {
 			sawKeys = true
 		}
 	}
