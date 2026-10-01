@@ -65,18 +65,6 @@ type Picker struct {
 // error message lists them.
 var pickerLayouts = []string{"list"}
 
-// removedKeys maps each key cdd once accepted to why it is gone, so an old
-// config.toml fails with the reason rather than a bare "unknown key".
-var removedKeys = map[string]string{
-	"root": "root was removed in v0.3.0: cdd now finds git repositories with cdd scan [dir...], so delete this line",
-}
-
-// removedLayouts maps each picker.layout value cdd once accepted to why it
-// is gone.
-var removedLayouts = map[string]string{
-	"grouped": `the grouped layout was removed in v0.3.0 along with Kinds; use "list"`,
-}
-
 // defaultConfig returns a Config with every default applied, before a
 // config.toml's fields are decoded on top of it.
 func defaultConfig() Config {
@@ -131,20 +119,14 @@ func LoadFrom(path string) (Config, error) {
 
 // describeDecodeError rewrites a toml decode error so it names the
 // offending key and line. For an unknown-key error (StrictMissingError) it
-// reports each missing field's key and position, and why a removed key is
-// gone; other decode errors (wrong types) already carry a key and position
-// via DecodeError.String.
+// reports each missing field's key and position; other decode errors
+// (wrong types) already carry a key and position via DecodeError.String.
 func describeDecodeError(err error) error {
 	var strict *toml.StrictMissingError
 	if errors.As(err, &strict) {
 		msgs := make([]string, len(strict.Errors))
 		for i, e := range strict.Errors {
 			row, col := e.Position()
-			key := strings.Join(e.Key(), ".")
-			if why, ok := removedKeys[key]; ok {
-				msgs[i] = fmt.Sprintf("line %d column %d: %s", row, col, why)
-				continue
-			}
 			msgs[i] = fmt.Sprintf("unknown key %q at line %d column %d", e.Key(), row, col)
 		}
 		return errors.New(strings.Join(msgs, "; "))
@@ -179,9 +161,6 @@ func (c *Config) validate(path string) error {
 		return fmt.Errorf("config: %s: history.max_visits must be >= 1, got %d", path, c.History.MaxVisits)
 	}
 
-	if why, ok := removedLayouts[c.Picker.Layout]; ok {
-		return fmt.Errorf("config: %s: picker.layout: %s", path, why)
-	}
 	if !slices.Contains(pickerLayouts, c.Picker.Layout) {
 		quoted := make([]string, len(pickerLayouts))
 		for i, l := range pickerLayouts {
