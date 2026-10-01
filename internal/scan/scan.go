@@ -6,6 +6,7 @@ package scan
 import (
 	"context"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/kryft-dev/cdd/internal/config"
@@ -18,24 +19,31 @@ import (
 type Summary struct {
 	// Seeded is the number of Visits actually appended to History.
 	Seeded int
-	// Projects is the number of Projects discovered.
+	// Projects is the number of Projects discovered, Forgotten ones left out.
 	Projects int
 }
 
 // Run discovers Projects at any depth below dirs, honoring cfg.Exclude and
-// cfg.IncludeHidden, and seeds hist with one Visit per Project. Each
-// Project's evidence time is git.LastCommit when the repository has a
-// commit, else the Project directory's mtime.
+// cfg.IncludeHidden, and seeds hist with one Visit per Project, except the
+// ones store holds as Forgotten. Each Project's evidence time is
+// git.LastCommit when the repository has a commit, else the Project
+// directory's mtime.
 //
 // Whether a given Project actually gains a new Visit is entirely up to
 // Seed's own idempotency rule (a Project with a newer real Visit is left
 // alone); Run does not re-implement that rule, only reports how many
 // Visits it produced.
-func Run(ctx context.Context, dirs []string, cfg config.Config, hist *history.History) (Summary, error) {
+func Run(ctx context.Context, dirs []string, cfg config.Config, hist *history.History, store *project.Store) (Summary, error) {
 	projects, err := project.Discover(dirs, cfg.Exclude, cfg.IncludeHidden)
 	if err != nil {
 		return Summary{}, fmt.Errorf("scan: discover projects: %w", err)
 	}
+
+	marks, err := store.Marks()
+	if err != nil {
+		return Summary{}, fmt.Errorf("scan: %w", err)
+	}
+	projects = slices.DeleteFunc(projects, marks.IsForgotten)
 
 	evidence, err := gatherEvidence(ctx, projects)
 	if err != nil {
