@@ -43,7 +43,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // active key map and focus. An Action's key overrides a navigation key of
 // the same name.
 func (m Model) updateKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	m.message = ""
+	m.message, m.messageOK = "", false
 	if a, ok := m.boundAction(msg.String()); ok {
 		return m.runAction(a)
 	}
@@ -146,6 +146,9 @@ func (m Model) runAction(a action.Action) (tea.Model, tea.Cmd) {
 	}
 	row := rows[m.cursor].row
 
+	if a.Copy {
+		return m.copyPath(a, row.Project.Path)
+	}
 	if !a.Detach {
 		m.chosen = true
 		m.chosenRow = row
@@ -157,6 +160,22 @@ func (m Model) runAction(a action.Action) (tea.Model, tea.Cmd) {
 		m.message = fmt.Sprintf("%s: %v", a.Name, err)
 	}
 	return m, nil
+}
+
+// copyPath copies path with the clipboard program there is, or else asks
+// Bubble Tea for the OSC 52 escape, which reaches the terminal even over
+// SSH. Either way the Picker stays open and the footer says "copied".
+func (m Model) copyPath(a action.Action, path string) (tea.Model, tea.Cmd) {
+	copied, err := m.copy(path)
+	if err != nil {
+		m.message = fmt.Sprintf("%s: %v", a.Name, err)
+		return m, nil
+	}
+	m.message, m.messageOK = "copied "+path, true
+	if copied {
+		return m, nil
+	}
+	return m, tea.SetClipboard(path)
 }
 
 // moveCursor shifts the cursor by delta rows, clamped to the visible range.

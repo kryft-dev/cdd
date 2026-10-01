@@ -39,6 +39,7 @@ type Model struct {
 
 	actions map[string]action.Action // keyed by Action.Key
 	runner  action.Runner
+	copy    func(text string) (bool, error)
 
 	query  string
 	focus  focus
@@ -55,8 +56,10 @@ type Model struct {
 	paletteSettled bool
 
 	// message is the one line the footer shows in place of the key hints
-	// until the next key press: a detached Action's failure to start.
-	message string
+	// until the next key press: a detached Action's failure to start, or
+	// that a copy succeeded (messageOK, shown as good news, not an error).
+	message   string
+	messageOK bool
 
 	chosen       bool
 	chosenRow    Row
@@ -85,9 +88,14 @@ func NewModel(rows []Row, status StatusFunc, opts Options) Model {
 	if runner == nil {
 		runner = action.ExecRunner{}
 	}
+	copyFn := opts.Copy
+	if copyFn == nil {
+		copyFn = action.Copy
+	}
 	return Model{
 		actions:  actions,
 		runner:   runner,
+		copy:     copyFn,
 		rows:     rows,
 		status:   status,
 		vim:      opts.Vim,
