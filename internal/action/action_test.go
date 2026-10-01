@@ -160,6 +160,26 @@ func TestMerge_JumpRebindsAndEnterGoesToAnotherAction(t *testing.T) {
 	}
 }
 
+func TestMerge_EnterNeedsJumpMovedOrUnboundBeforeAnotherActionTakesIt(t *testing.T) {
+	code := Override{Key: str("enter"), Run: str("code {path}")}
+
+	if _, err := Merge(map[string]Override{"code": code}, false); err == nil {
+		t.Error("Merge succeeded with jump still on enter, want a conflict")
+	}
+
+	got, err := Merge(map[string]Override{"code": code, "jump": {Key: str("")}}, false)
+	if err != nil {
+		t.Fatalf("Merge: %v", err)
+	}
+	keys := map[string]string{}
+	for _, a := range got {
+		keys[a.Name] = a.Key
+	}
+	if keys["code"] != "enter" || keys["jump"] != "" {
+		t.Errorf("keys = %v, want code on enter and jump unbound", keys)
+	}
+}
+
 func TestMerge_JumpMayBeLeftUnbound(t *testing.T) {
 	got, err := Merge(map[string]Override{"jump": {Key: str("")}}, false)
 	if err != nil || got[0].Name != "jump" || got[0].Key != "" || !got[0].Jump {

@@ -179,8 +179,9 @@ run    = "code {path}"
 detach = true
 ```
 
-Rebinding `enter` without moving `jump` leaves `jump` unbound, which is
-allowed. `key = ""` on `jump` unbinds it outright.
+`jump` holds `enter` until you move it, so giving `enter` to another Action
+means moving `jump` or setting `[actions.jump] key = ""`, which leaves it
+unbound. That is allowed; `jump` just has no key.
 
 ### Layout
 
