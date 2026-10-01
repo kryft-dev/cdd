@@ -25,18 +25,21 @@ func names(as []Action) []string {
 	return out
 }
 
-func TestMerge_UserActionsFollowBuiltinsSortedByName(t *testing.T) {
+func TestMerge_UserActionsComeFirstInConfigOrderThenBuiltins(t *testing.T) {
 	withBuiltins(t, Action{Name: "files", Key: "ctrl+o", Run: "xdg-open {path}", Detach: true})
 
 	got, err := Merge(map[string]Override{
 		"zed":  {Run: str("zed {path}")},
 		"code": {Key: str("ctrl+v"), Run: str("code {path}"), Detach: flag(true)},
-	}, false)
+		"mid":  {Run: str("mid")},
+	}, []string{"zed", "files", "code"}, false)
 	if err != nil {
 		t.Fatalf("Merge: %v", err)
 	}
 
-	if want := []string{"files", "code", "zed"}; !slices.Equal(names(got), want) {
+	// "files" in the order is a built-in and stays with them; "mid", which
+	// the order leaves out, follows the ones it lists.
+	if want := []string{"zed", "code", "mid", "files"}; !slices.Equal(names(got), want) {
 		t.Fatalf("names = %v, want %v", names(got), want)
 	}
 	code := got[1]
@@ -45,10 +48,22 @@ func TestMerge_UserActionsFollowBuiltinsSortedByName(t *testing.T) {
 	}
 }
 
+func TestMerge_AnOrderNamingTheSameActionTwiceListsItOnce(t *testing.T) {
+	withBuiltins(t)
+
+	got, err := Merge(map[string]Override{"a": {Run: str("a")}}, []string{"a", "a", "nope"}, false)
+	if err != nil {
+		t.Fatalf("Merge: %v", err)
+	}
+	if want := []string{"a"}; !slices.Equal(names(got), want) {
+		t.Errorf("names = %v, want %v", names(got), want)
+	}
+}
+
 func TestMerge_OverridesABuiltinFieldByField(t *testing.T) {
 	withBuiltins(t, Action{Name: "files", Key: "ctrl+o", Run: "xdg-open {path}", Detach: true})
 
-	got, err := Merge(map[string]Override{"files": {Key: str("ctrl+f")}}, false)
+	got, err := Merge(map[string]Override{"files": {Key: str("ctrl+f")}}, nil, false)
 	if err != nil {
 		t.Fatalf("Merge: %v", err)
 	}
@@ -62,7 +77,7 @@ func TestMerge_OverridesABuiltinFieldByField(t *testing.T) {
 func TestMerge_EmptyKeyUnbindsABuiltin(t *testing.T) {
 	withBuiltins(t, Action{Name: "files", Key: "ctrl+o", Run: "xdg-open {path}"})
 
-	got, err := Merge(map[string]Override{"files": {Key: str("")}}, false)
+	got, err := Merge(map[string]Override{"files": {Key: str("")}}, nil, false)
 	if err != nil {
 		t.Fatalf("Merge: %v", err)
 	}
@@ -93,7 +108,7 @@ func TestMerge_Errors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			withBuiltins(t)
-			_, err := Merge(tt.user, tt.vim)
+			_, err := Merge(tt.user, nil, tt.vim)
 			var ae *Error
 			if !errors.As(err, &ae) {
 				t.Fatalf("err = %v, want *Error", err)
@@ -108,7 +123,7 @@ func TestMerge_Errors(t *testing.T) {
 func TestMerge_UserKeyDisplacesABuiltinHoldingIt(t *testing.T) {
 	withBuiltins(t, Action{Name: "files", Key: "ctrl+o", Run: "xdg-open {path}"})
 
-	got, err := Merge(map[string]Override{"code": {Key: str("ctrl+o"), Run: str("code")}}, false)
+	got, err := Merge(map[string]Override{"code": {Key: str("ctrl+o"), Run: str("code")}}, nil, false)
 	if err != nil {
 		t.Fatalf("Merge: %v", err)
 	}
@@ -127,7 +142,7 @@ func TestMerge_UserRebindingABuiltinDisplacesAnotherBuiltin(t *testing.T) {
 		Action{Name: "remote", Key: "ctrl+r", Run: "open-remote {path}"},
 	)
 
-	got, err := Merge(map[string]Override{"remote": {Key: str("enter")}}, false)
+	got, err := Merge(map[string]Override{"remote": {Key: str("enter")}}, nil, false)
 	if err != nil {
 		t.Fatalf("Merge: %v", err)
 	}
@@ -146,7 +161,7 @@ func TestMerge_UserRebindingAnEarlierBuiltinDisplacesALaterOne(t *testing.T) {
 		Action{Name: "b", Key: "ctrl+b", Run: "y"},
 	)
 
-	got, err := Merge(map[string]Override{"a": {Key: str("ctrl+b")}}, false)
+	got, err := Merge(map[string]Override{"a": {Key: str("ctrl+b")}}, nil, false)
 	if err != nil {
 		t.Fatalf("Merge: %v", err)
 	}
@@ -159,7 +174,7 @@ func TestMerge_TwoUserActionsOnEnterIsAnError(t *testing.T) {
 	_, err := Merge(map[string]Override{
 		"code": {Key: str("enter"), Run: str("code {path}")},
 		"edit": {Key: str("enter"), Run: str("vi {path}")},
-	}, false)
+	}, nil, false)
 	var ae *Error
 	if !errors.As(err, &ae) || ae.Name != "edit" || ae.Field != "key" {
 		t.Fatalf("err = %v, want an *Error for edit's key", err)
@@ -168,7 +183,7 @@ func TestMerge_TwoUserActionsOnEnterIsAnError(t *testing.T) {
 
 func TestMerge_PrintableKeyAllowedWithVim(t *testing.T) {
 	withBuiltins(t)
-	got, err := Merge(map[string]Override{"a": {Key: str("?"), Run: str("x")}}, true)
+	got, err := Merge(map[string]Override{"a": {Key: str("?"), Run: str("x")}}, nil, true)
 	if err != nil || got[0].Key != "?" {
 		t.Fatalf("got %+v, %v", got, err)
 	}
@@ -176,7 +191,7 @@ func TestMerge_PrintableKeyAllowedWithVim(t *testing.T) {
 
 func TestMerge_JumpNeedsNoRun(t *testing.T) {
 	withBuiltins(t, Action{Name: "jump", Key: "enter", Jump: true})
-	if _, err := Merge(nil, false); err != nil {
+	if _, err := Merge(nil, nil, false); err != nil {
 		t.Fatalf("Merge: %v", err)
 	}
 }
@@ -198,7 +213,7 @@ func TestMerge_JumpRebindsAndEnterGoesToAnotherAction(t *testing.T) {
 	got, err := Merge(map[string]Override{
 		"jump": {Key: str("alt+enter")},
 		"code": {Key: str("enter"), Run: str("code {path}"), Detach: &detach},
-	}, false)
+	}, nil, false)
 	if err != nil {
 		t.Fatalf("Merge: %v", err)
 	}
@@ -212,7 +227,7 @@ func TestMerge_JumpRebindsAndEnterGoesToAnotherAction(t *testing.T) {
 }
 
 func TestMerge_EnterGoesToAnotherActionAndJumpIsLeftUnbound(t *testing.T) {
-	got, err := Merge(map[string]Override{"code": {Key: str("enter"), Run: str("code {path}")}}, false)
+	got, err := Merge(map[string]Override{"code": {Key: str("enter"), Run: str("code {path}")}}, nil, false)
 	if err != nil {
 		t.Fatalf("Merge: %v", err)
 	}
@@ -226,7 +241,7 @@ func TestMerge_EnterGoesToAnotherActionAndJumpIsLeftUnbound(t *testing.T) {
 }
 
 func TestMerge_JumpMayBeLeftUnbound(t *testing.T) {
-	got, err := Merge(map[string]Override{"jump": {Key: str("")}}, false)
+	got, err := Merge(map[string]Override{"jump": {Key: str("")}}, nil, false)
 	if err != nil || got[0].Name != "jump" || got[0].Key != "" || !got[0].Jump {
 		t.Fatalf("got %+v, %v, want an unbound jump", got, err)
 	}

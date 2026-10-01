@@ -88,7 +88,7 @@ func TestMerge_UserOverridesFilesAndEditor(t *testing.T) {
 	got, err := action.Merge(map[string]action.Override{
 		"files":  {Run: ptr("thunar {path}"), Key: ptr("ctrl+f")},
 		"editor": {Run: ptr("hx {path}")},
-	}, false)
+	}, nil, false)
 	if err != nil {
 		t.Fatalf("Merge: %v", err)
 	}
@@ -108,7 +108,7 @@ func TestMerge_FilesAndEditorCanBeUnbound(t *testing.T) {
 	got, err := action.Merge(map[string]action.Override{
 		"files":  {Key: ptr("")},
 		"editor": {Key: ptr("")},
-	}, false)
+	}, nil, false)
 	if err != nil {
 		t.Fatalf("Merge: %v", err)
 	}

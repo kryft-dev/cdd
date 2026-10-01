@@ -17,7 +17,7 @@ func TestBuiltins_CopyIsBoundToCtrlYWithNoCommand(t *testing.T) {
 func TestMerge_CopyKeepsCopyUntilTheUserSetsRun(t *testing.T) {
 	merged := func(o action.Override) action.Action {
 		t.Helper()
-		got, err := action.Merge(map[string]action.Override{"copy": o}, false)
+		got, err := action.Merge(map[string]action.Override{"copy": o}, nil, false)
 		if err != nil {
 			t.Fatalf("Merge: %v", err)
 		}
