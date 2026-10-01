@@ -34,6 +34,12 @@ type Action struct {
 	// Detach starts Run in its own session without waiting, and leaves the
 	// Picker open.
 	Detach bool
+
+	// Copy makes the Picker itself copy the Project's path to the clipboard
+	// and stay open, with no Run. Only a built-in sets it, since the OSC 52
+	// fallback has to go out through the Picker's own terminal. A user's
+	// "run" or "jump" for the Action replaces it.
+	Copy bool
 }
 
 // Override is the part of an Action a [actions.<name>] table sets. A nil
@@ -55,6 +61,7 @@ var builtins = []Action{
 	// $VISUAL or $EDITOR needs no restart.
 	{Name: "editor", Key: "ctrl+e", Run: "${VISUAL:-${EDITOR:-vi}} {path}"},
 	{Name: "remote", Key: "ctrl+g", Run: Opener(runtime.GOOS) + " {remote}", Detach: true},
+	{Name: "copy", Key: "ctrl+y", Copy: true},
 }
 
 // Builtins returns a copy of the built-in Actions.
@@ -113,9 +120,11 @@ func Merge(user map[string]Override, vim bool) ([]Action, error) {
 		}
 		if o.Run != nil {
 			a.Run = *o.Run
+			a.Copy = false
 		}
 		if o.Jump != nil {
 			a.Jump = *o.Jump
+			a.Copy = a.Copy && !a.Jump
 		}
 		if o.Detach != nil {
 			a.Detach = *o.Detach
@@ -125,7 +134,7 @@ func Merge(user map[string]Override, vim bool) ([]Action, error) {
 	owner := make(map[string]string, len(out))
 	for i := range out {
 		a := &out[i]
-		if a.Run == "" && !a.Jump {
+		if a.Run == "" && !a.Jump && !a.Copy {
 			return nil, &Error{a.Name, "run", errors.New("a command is required unless jump is true")}
 		}
 		key, err := NormalizeKey(a.Key, vim)
