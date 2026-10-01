@@ -1,12 +1,15 @@
 package action
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
 	"syscall"
+
+	"github.com/kryft-dev/cdd/internal/git"
 )
 
 // Runner starts the commands of Actions. The Picker and the Resolve flow
@@ -33,13 +36,24 @@ type ExecRunner struct {
 }
 
 // Command builds the "sh -c" command for a on the Project at path: "{path}"
-// in Run is replaced by the shell-quoted path, the working directory is
-// the Project, and CDD_PATH holds the path.
-func Command(a Action, path string) *exec.Cmd {
-	cmd := exec.Command("sh", "-c", strings.ReplaceAll(a.Run, "{path}", shellQuote(path)))
+// in Run is replaced by the shell-quoted path, "{remote}" by the shell-quoted
+// home page URL of the Project's git remote, the working directory is the
+// Project, and CDD_PATH holds the path. It fails, without a command, when
+// Run uses "{remote}" and the Project has none (git.ErrNoRemote,
+// git.ErrNotRepo).
+func Command(a Action, path string) (*exec.Cmd, error) {
+	script := strings.ReplaceAll(a.Run, "{path}", shellQuote(path))
+	if strings.Contains(script, "{remote}") {
+		url, err := git.RemoteURL(context.Background(), path)
+		if err != nil {
+			return nil, err
+		}
+		script = strings.ReplaceAll(script, "{remote}", shellQuote(url))
+	}
+	cmd := exec.Command("sh", "-c", script)
 	cmd.Dir = path
 	cmd.Env = append(os.Environ(), "CDD_PATH="+path)
-	return cmd
+	return cmd, nil
 }
 
 // shellQuote wraps s in single quotes for sh, so spaces and metacharacters
@@ -51,7 +65,10 @@ func shellQuote(s string) string {
 // Start implements Runner. The command gets a session of its own, so it
 // outlives the Picker, and /dev/null for stdio.
 func (ExecRunner) Start(a Action, path string) error {
-	cmd := Command(a, path)
+	cmd, err := Command(a, path)
+	if err != nil {
+		return err
+	}
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	if err := cmd.Start(); err != nil {
 		return err
@@ -72,7 +89,10 @@ func (r ExecRunner) Run(a Action, path string) (int, error) {
 	}
 	defer func() { _ = tty.Close() }()
 
-	cmd := Command(a, path)
+	cmd, err := Command(a, path)
+	if err != nil {
+		return 0, err
+	}
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = tty, tty, tty
 	err = cmd.Run()
 

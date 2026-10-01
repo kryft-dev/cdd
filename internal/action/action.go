@@ -22,7 +22,9 @@ type Action struct {
 	Key string
 
 	// Run is the shell command, with "{path}" standing for the Project's
-	// shell-quoted absolute path. It may be empty only for an Action that
+	// shell-quoted absolute path and "{remote}" for the shell-quoted home
+	// page URL of its git remote, which fails the Action when it has none.
+	// It may be empty only for an Action that
 	// Jumps.
 	Run string
 
@@ -52,6 +54,7 @@ var builtins = []Action{
 	// The shell picks the editor each time the Action runs, so a change to
 	// $VISUAL or $EDITOR needs no restart.
 	{Name: "editor", Key: "ctrl+e", Run: "${VISUAL:-${EDITOR:-vi}} {path}"},
+	{Name: "remote", Key: "ctrl+g", Run: Opener(runtime.GOOS) + " {remote}", Detach: true},
 }
 
 // Builtins returns a copy of the built-in Actions.
