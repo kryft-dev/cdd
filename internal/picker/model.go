@@ -2,12 +2,13 @@ package picker
 
 import (
 	"context"
+	"sort"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/sahilm/fuzzy"
 
 	"github.com/kryft-dev/cdd/internal/git"
+	"github.com/kryft-dev/cdd/internal/match"
 )
 
 // focus tracks which part of the Picker receives key presses. Only the vim
@@ -136,9 +137,11 @@ func statusCmd(status StatusFunc, path string, sem chan struct{}) tea.Cmd {
 }
 
 // visibleMatches returns the current query's matches over rows: every row
-// in History order when the query is empty, otherwise fuzzy.Find's ranking.
+// in History order when the query is empty, otherwise ranked by the match
+// package, equally good matches keeping History order.
 func (m Model) visibleMatches() []hit {
-	if m.query == "" {
+	q := match.Parse(m.query)
+	if q.Empty() {
 		out := make([]hit, len(m.rows))
 		for i, r := range m.rows {
 			out[i] = hit{row: r}
@@ -146,17 +149,32 @@ func (m Model) visibleMatches() []hit {
 		return out
 	}
 
-	paths := make([]string, len(m.rows))
-	for i, r := range m.rows {
-		paths[i] = r.Project.Dir + r.Project.Name
+	var out []hit
+	var results []match.Result
+	for _, r := range m.rows {
+		res, ok := q.Match(r.Project.Dir, r.Project.Name)
+		if !ok {
+			continue
+		}
+		out = append(out, hit{row: r, matches: res.Indexes})
+		results = append(results, res)
 	}
-	results := fuzzy.Find(m.query, paths)
-
-	out := make([]hit, len(results))
-	for i, res := range results {
-		out[i] = hit{row: m.rows[res.Index], matches: res.MatchedIndexes}
-	}
+	sort.Stable(byResult{out, results})
 	return out
+}
+
+// byResult sorts hits by their match.Result, keeping hits and results in
+// step.
+type byResult struct {
+	hits    []hit
+	results []match.Result
+}
+
+func (b byResult) Len() int           { return len(b.hits) }
+func (b byResult) Less(i, j int) bool { return match.Less(b.results[i], b.results[j]) }
+func (b byResult) Swap(i, j int) {
+	b.hits[i], b.hits[j] = b.hits[j], b.hits[i]
+	b.results[i], b.results[j] = b.results[j], b.results[i]
 }
 
 // visibleRows returns the current query's matches in the order the layout

@@ -88,7 +88,7 @@ const listNameFloor = 4
 
 // listNameField renders the Project's parent directory and name padded to
 // Layout.NameWidth, the directory muted ahead of the name and any
-// fuzzy-match runes highlighted. The name is truncated first when the pair
+// matched runes highlighted. The name is truncated first when the pair
 // is too wide, and the directory, from its start, once the name is down to
 // listNameFloor. Each segment keeps its own style, so a long directory
 // never mutes the name with it.
