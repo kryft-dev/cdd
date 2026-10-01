@@ -34,7 +34,7 @@ type Model struct {
 	rows   []Row
 	status StatusFunc
 	vim    bool
-	layout LayoutStyle
+	layout Layout
 
 	query  string
 	focus  focus

@@ -48,14 +48,14 @@ type Row struct {
 // without blocking the screen.
 type StatusFunc func(ctx context.Context, dir string) git.Status
 
-// LayoutStyle names one of the Picker's layouts. It is a standing
+// Layout names one of the Picker's layouts. It is a standing
 // preference, set once in config.toml, not a per-session toggle.
-type LayoutStyle string
+type Layout string
 
 // LayoutList is the flat fzf-style layout, and the default: rows in History
 // order with the parent directory muted before each Project name, the filter prompt
 // below the list, and a bar plus background highlight on the selected row.
-const LayoutList LayoutStyle = "list"
+const LayoutList Layout = "list"
 
 // Options configures a Run of the Picker.
 type Options struct {
@@ -72,7 +72,7 @@ type Options struct {
 
 	// Layout selects which layout is drawn. The zero value is
 	// LayoutList.
-	Layout LayoutStyle
+	Layout Layout
 }
 
 // concurrency bounds how many StatusFunc calls run at once, so a large
