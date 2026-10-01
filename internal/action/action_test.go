@@ -105,13 +105,19 @@ func TestMerge_Errors(t *testing.T) {
 	}
 }
 
-func TestMerge_ClashWithABuiltinNamesTheUserAction(t *testing.T) {
+func TestMerge_UserKeyDisplacesABuiltinHoldingIt(t *testing.T) {
 	withBuiltins(t, Action{Name: "files", Key: "ctrl+o", Run: "xdg-open {path}"})
 
-	_, err := Merge(map[string]Override{"code": {Key: str("ctrl+o"), Run: str("code")}}, false)
-	var ae *Error
-	if !errors.As(err, &ae) || ae.Name != "code" {
-		t.Fatalf("err = %v, want an *Error for code", err)
+	got, err := Merge(map[string]Override{"code": {Key: str("ctrl+o"), Run: str("code")}}, false)
+	if err != nil {
+		t.Fatalf("Merge: %v", err)
+	}
+	keys := map[string]string{}
+	for _, a := range got {
+		keys[a.Name] = a.Key
+	}
+	if keys["code"] != "ctrl+o" || keys["files"] != "" {
+		t.Errorf("keys = %v, want code on ctrl+o and files unbound", keys)
 	}
 }
 
@@ -160,14 +166,8 @@ func TestMerge_JumpRebindsAndEnterGoesToAnotherAction(t *testing.T) {
 	}
 }
 
-func TestMerge_EnterNeedsJumpMovedOrUnboundBeforeAnotherActionTakesIt(t *testing.T) {
-	code := Override{Key: str("enter"), Run: str("code {path}")}
-
-	if _, err := Merge(map[string]Override{"code": code}, false); err == nil {
-		t.Error("Merge succeeded with jump still on enter, want a conflict")
-	}
-
-	got, err := Merge(map[string]Override{"code": code, "jump": {Key: str("")}}, false)
+func TestMerge_EnterGoesToAnotherActionAndJumpIsLeftUnbound(t *testing.T) {
+	got, err := Merge(map[string]Override{"code": {Key: str("enter"), Run: str("code {path}")}}, false)
 	if err != nil {
 		t.Fatalf("Merge: %v", err)
 	}
