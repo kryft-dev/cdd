@@ -129,3 +129,40 @@ func TestMerge_JumpNeedsNoRun(t *testing.T) {
 		t.Fatalf("Merge: %v", err)
 	}
 }
+
+func TestBuiltins_JumpIsBoundToEnterAndNeedsNoCommand(t *testing.T) {
+	var got *Action
+	for _, a := range Builtins() {
+		if a.Name == "jump" {
+			got = &a
+		}
+	}
+	if got == nil || got.Key != "enter" || got.Run != "" || !got.Jump || got.Detach {
+		t.Fatalf("jump built-in = %+v, want a Jump bound to enter with no command", got)
+	}
+}
+
+func TestMerge_JumpRebindsAndEnterGoesToAnotherAction(t *testing.T) {
+	detach := true
+	got, err := Merge(map[string]Override{
+		"jump": {Key: str("alt+enter")},
+		"code": {Key: str("enter"), Run: str("code {path}"), Detach: &detach},
+	}, false)
+	if err != nil {
+		t.Fatalf("Merge: %v", err)
+	}
+	keys := map[string]string{}
+	for _, a := range got {
+		keys[a.Name] = a.Key
+	}
+	if keys["jump"] != "alt+enter" || keys["code"] != "enter" {
+		t.Errorf("keys = %v, want jump on alt+enter and code on enter", keys)
+	}
+}
+
+func TestMerge_JumpMayBeLeftUnbound(t *testing.T) {
+	got, err := Merge(map[string]Override{"jump": {Key: str("")}}, false)
+	if err != nil || got[0].Name != "jump" || got[0].Key != "" || !got[0].Jump {
+		t.Fatalf("got %+v, %v, want an unbound jump", got, err)
+	}
+}

@@ -45,7 +45,9 @@ type Override struct {
 // builtins are the Actions cdd ships, in the order the Picker lists them.
 // A built-in is registered by adding it here; a user's [actions.<name>]
 // table with the same name overrides it field by field.
-var builtins = []Action{}
+var builtins = []Action{
+	{Name: "jump", Key: "enter", Jump: true},
+}
 
 // Builtins returns a copy of the built-in Actions.
 func Builtins() []Action {
