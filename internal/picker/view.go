@@ -62,7 +62,7 @@ func (m Model) filterLine(t theme) string {
 }
 
 // previewView renders the right-hand preview box for the selected row.
-func (m Model) previewView(t theme, rows []hit, lay Layout, now time.Time) string {
+func (m Model) previewView(t theme, rows []hit, met Metrics, now time.Time) string {
 	var body strings.Builder
 	if m.cursor >= 0 && m.cursor < len(rows) {
 		p := rows[m.cursor].row.Project
@@ -94,21 +94,21 @@ func (m Model) previewView(t theme, rows []hit, lay Layout, now time.Time) strin
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(t.rule).
 		Padding(0, 1).
-		Width(lay.PreviewWidth).
-		Height(lay.ListHeight).
-		MaxHeight(lay.ListHeight) // Height is a minimum; a tall body must not grow the box
+		Width(met.PreviewWidth).
+		Height(met.ListHeight).
+		MaxHeight(met.ListHeight) // Height is a minimum; a tall body must not grow the box
 	return box.Render(body.String())
 }
 
 // footerView renders the rule, legend line (when there is room), keys line
 // (when there is room) and the match count.
-func (m Model) footerView(t theme, width, matched int, lay Layout) string {
+func (m Model) footerView(t theme, width, matched int, met Metrics) string {
 	var lines []string
 	lines = append(lines, t.rule_(width))
-	if lay.ShowLegend {
+	if met.ShowLegend {
 		lines = append(lines, t.legend())
 	}
-	if lay.ShowKeys {
+	if met.ShowKeys {
 		keys := t.keysLine("↑↓", "move", "enter", "jump", "esc", "cancel", "ctrl+u", "clear")
 		if m.vim {
 			keys = t.keysLine("j/k", "move", "f", "filter", "esc", "back/cancel", "enter", "jump", "q", "quit")

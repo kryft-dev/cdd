@@ -22,9 +22,9 @@ const caretWidth = 3
 // have arrived would widen under the user as the rest do.
 const statusReserve = 8
 
-// Layout is the Picker's per-frame sizing, recomputed from every
+// Metrics is the Picker's per-frame sizing, recomputed from every
 // tea.WindowSizeMsg without losing any Model state.
-type Layout struct {
+type Metrics struct {
 	// NameWidth is the column width for a Project name, after any
 	// truncation.
 	NameWidth int
@@ -53,7 +53,7 @@ type Layout struct {
 	ShowKeys bool
 }
 
-// ComputeLayout derives a Layout from the terminal size and the content
+// ComputeMetrics derives Metrics from the terminal size and the content
 // that must fit in it: the longest Project name, the widest status glyph
 // cluster, and the last-visit times of the currently visible rows.
 //
@@ -64,8 +64,8 @@ type Layout struct {
 // compresses to its short form first, then names truncate with "…" down to
 // nameFloor; the status cluster is never narrower than statusReserve and
 // there is no hard minimum.
-func ComputeLayout(longestName, widestStatus int, times []time.Time, now time.Time, width, height int) Layout {
-	l := Layout{
+func ComputeMetrics(longestName, widestStatus int, times []time.Time, now time.Time, width, height int) Metrics {
+	l := Metrics{
 		NameWidth:   longestName,
 		StatusWidth: max(widestStatus, statusReserve),
 		TimeWidth:   widestTime(times, now, false),
@@ -127,9 +127,9 @@ func (m Model) frameSize() (width, height int) {
 	return width, height
 }
 
-// computeLayout sizes one frame from the rows it has to show. The name
+// computeMetrics sizes one frame from the rows it has to show. The name
 // column holds the Project's parent directory and name.
-func (m Model) computeLayout(rows []hit, now time.Time, width, height int) Layout {
+func (m Model) computeMetrics(rows []hit, now time.Time, width, height int) Metrics {
 	longestName, widestStatus := 0, 1
 	times := make([]time.Time, 0, len(rows))
 	for _, mt := range rows {
@@ -143,12 +143,12 @@ func (m Model) computeLayout(rows []hit, now time.Time, width, height int) Layou
 		}
 		times = append(times, mt.row.LastVisit)
 	}
-	return ComputeLayout(longestName, widestStatus, times, now, width, height)
+	return ComputeMetrics(longestName, widestStatus, times, now, width, height)
 }
 
 // window clips lines to exactly height lines, scrolled just far enough to
 // keep cursorLine on screen and padded with blanks when lines run short.
-// Both layouts draw their body through it, so the frame always comes out
+// Every layout draws its body through it, so the frame always comes out
 // at the terminal height.
 func window(lines []string, cursorLine, height int) string {
 	height = max(height, 1)

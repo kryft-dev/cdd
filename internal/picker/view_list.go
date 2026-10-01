@@ -16,14 +16,14 @@ const selBar = "▌"
 func (m Model) listFrame(t theme, now time.Time) string {
 	rows := m.visibleRows()
 	width, height := m.frameSize()
-	lay := m.computeLayout(rows, now, width, height)
+	met := m.computeMetrics(rows, now, width, height)
 
 	var b strings.Builder
-	body := m.listBody(t, rows, lay, now)
-	if lay.ShowPreview {
+	body := m.listBody(t, rows, met, now)
+	if met.ShowPreview {
 		// The preview box is exactly ListHeight lines tall, matching the
 		// body, so the frame stays at the terminal height.
-		b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, body, " ", m.previewView(t, rows, lay, now)))
+		b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, body, " ", m.previewView(t, rows, met, now)))
 	} else {
 		b.WriteString(body)
 	}
@@ -31,31 +31,31 @@ func (m Model) listFrame(t theme, now time.Time) string {
 	b.WriteString("\n")
 	b.WriteString(m.filterLine(t))
 	b.WriteString("\n")
-	b.WriteString(m.footerView(t, width, len(rows), lay))
+	b.WriteString(m.footerView(t, width, len(rows), met))
 
 	return b.String()
 }
 
 // listBody renders the list pane: one line per visible row, windowed to
-// exactly Layout.ListHeight lines and scrolled to keep the cursor's row on
+// exactly Metrics.ListHeight lines and scrolled to keep the cursor's row on
 // screen.
-func (m Model) listBody(t theme, rows []hit, lay Layout, now time.Time) string {
+func (m Model) listBody(t theme, rows []hit, met Metrics, now time.Time) string {
 	lines := make([]string, 0, max(len(rows), 1))
 	for i, mt := range rows {
-		lines = append(lines, m.listRowView(t, mt, i == m.cursor, lay, now))
+		lines = append(lines, m.listRowView(t, mt, i == m.cursor, met, now))
 	}
 	if len(rows) == 0 {
 		lines = append(lines, t.muted_().Render("no projects match"))
 	}
 
-	return window(lines, m.cursor, lay.ListHeight)
+	return window(lines, m.cursor, met.ListHeight)
 }
 
 // listRowView renders one row as "▌ STATUS ~/dir/NAME   LAST VISIT", padded
-// out to Layout.ListWidth. Every segment, padding included, is rendered
+// out to Metrics.ListWidth. Every segment, padding included, is rendered
 // through base, so the selected row's background highlight runs unbroken
 // to the edge of the pane.
-func (m Model) listRowView(t theme, mt hit, selected bool, lay Layout, now time.Time) string {
+func (m Model) listRowView(t theme, mt hit, selected bool, met Metrics, now time.Time) string {
 	base := lipgloss.NewStyle()
 	nameStyle := base
 	bar := base.Render(" ")
@@ -67,17 +67,17 @@ func (m Model) listRowView(t theme, mt hit, selected bool, lay Layout, now time.
 	dirStyle := base.Foreground(t.muted)
 
 	st, loaded := m.statuses[mt.row.Project.Path]
-	status := padRightOn(base, t.statusClusterOn(base, st, loaded), lay.StatusWidth)
-	name := m.listNameField(t, mt, lay, base, dirStyle, nameStyle)
+	status := padRightOn(base, t.statusClusterOn(base, st, loaded), met.StatusWidth)
+	name := m.listNameField(t, mt, met, base, dirStyle, nameStyle)
 
 	rel := RelativeTime(mt.row.LastVisit, now)
-	if lay.ShortTime {
+	if met.ShortTime {
 		rel = RelativeTimeShort(mt.row.LastVisit, now)
 	}
-	rel = padLeftOn(base, base.Foreground(t.muted).Render(rel), lay.TimeWidth)
+	rel = padLeftOn(base, base.Foreground(t.muted).Render(rel), met.TimeWidth)
 
 	lead := bar + base.Render(" ") + status + base.Render(" ") + name
-	gap := max(lay.ListWidth-lipgloss.Width(lead)-lipgloss.Width(rel)-1, 1)
+	gap := max(met.ListWidth-lipgloss.Width(lead)-lipgloss.Width(rel)-1, 1)
 	return lead + base.Render(strings.Repeat(" ", gap)) + rel + base.Render(" ")
 }
 
@@ -87,12 +87,12 @@ func (m Model) listRowView(t theme, mt hit, selected bool, lay Layout, now time.
 const listNameFloor = 4
 
 // listNameField renders the Project's parent directory and name padded to
-// Layout.NameWidth, the directory muted ahead of the name and any
+// Metrics.NameWidth, the directory muted ahead of the name and any
 // matched runes highlighted. The name is truncated first when the pair
 // is too wide, and the directory, from its start, once the name is down to
 // listNameFloor. Each segment keeps its own style, so a long directory
 // never mutes the name with it.
-func (m Model) listNameField(t theme, mt hit, lay Layout, base, dirStyle, nameStyle lipgloss.Style) string {
+func (m Model) listNameField(t theme, mt hit, met Metrics, base, dirStyle, nameStyle lipgloss.Style) string {
 	p := mt.row.Project
 	dir, name := p.Dir, p.Name
 
@@ -101,15 +101,15 @@ func (m Model) listNameField(t theme, mt hit, lay Layout, base, dirStyle, nameSt
 	dirWidth := len([]rune(dir))
 	nameOffset := dirWidth
 	dirOffset := 0
-	if over := dirWidth - (lay.NameWidth - listNameFloor); over > 0 {
+	if over := dirWidth - (met.NameWidth - listNameFloor); over > 0 {
 		kept := max(dirWidth-over, 0)
 		dir = truncateLeft(dir, kept)
 		dirOffset = dirWidth - kept
 		dirWidth = kept
 	}
-	name = truncateName(name, max(lay.NameWidth-dirWidth, 0))
+	name = truncateName(name, max(met.NameWidth-dirWidth, 0))
 
 	field := highlightMatches(dir, mt.matches, dirOffset, dirStyle, t) +
 		highlightMatches(name, mt.matches, nameOffset, nameStyle, t)
-	return padRightOn(base, field, lay.NameWidth)
+	return padRightOn(base, field, met.NameWidth)
 }

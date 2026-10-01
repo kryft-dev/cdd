@@ -59,15 +59,15 @@ func TestModel_View_ListWindowedToHeight(t *testing.T) {
 	rows := manyRows(40)
 	m := sizedModel(rows, picker.LayoutList, 120, 20)
 
-	lay := picker.ComputeLayout(10, 1, make([]time.Time, len(rows)), time.Now(), 120, 20)
+	met := picker.ComputeMetrics(10, 1, make([]time.Time, len(rows)), time.Now(), 120, 20)
 
 	out := m.View().Content
 	lines := strings.Split(out, "\n")
 
 	// Without windowing, every one of the 40 rows would be drawn, pushing the total well past Height; with windowing
 	// the whole frame stays close to the terminal height.
-	if len(lines) > lay.ListHeight+6 {
-		t.Errorf("View() produced %d lines at Height 20 (ListHeight=%d); footer likely pushed off screen:\n%s", len(lines), lay.ListHeight, out)
+	if len(lines) > met.ListHeight+6 {
+		t.Errorf("View() produced %d lines at Height 20 (ListHeight=%d); footer likely pushed off screen:\n%s", len(lines), met.ListHeight, out)
 	}
 
 	sawKeys := false
@@ -159,10 +159,10 @@ func TestModel_View_FrameMatchesTerminalHeight(t *testing.T) {
 func TestModel_View_FilterLineSitsWhereTheLayoutPutsIt(t *testing.T) {
 	rows := manyRows(11)
 	const width, height = 110, 24
-	lay := picker.ComputeLayout(20, 1, make([]time.Time, len(rows)), time.Now(), width, height)
+	met := picker.ComputeMetrics(20, 1, make([]time.Time, len(rows)), time.Now(), width, height)
 
 	promptLine := map[picker.LayoutStyle]int{
-		picker.LayoutList: lay.ListHeight,
+		picker.LayoutList: met.ListHeight,
 	}
 	for _, layout := range allLayouts {
 		t.Run(string(layout), func(t *testing.T) {
