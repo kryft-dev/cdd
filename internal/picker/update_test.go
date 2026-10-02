@@ -67,7 +67,7 @@ func keyedStatus(statuses map[string]git.Status) picker.StatusFunc {
 func TestModel_Update_StatusResult(t *testing.T) {
 	statuses := map[string]git.Status{
 		"/root/work/alpha": {Kind: git.Found, State: git.Dirty},
-		"/root/work/beta":  {Kind: git.NotRepo},
+		"/root/work/beta":  {Kind: git.Unknown},
 	}
 	m := picker.NewModel(
 		[]picker.Row{
@@ -101,7 +101,7 @@ func TestModel_Update_StatusResult(t *testing.T) {
 
 	// Feed the results through Update in reverse order: if results were
 	// keyed by arrival index rather than by Project path, the last row's
-	// status (beta, NotRepo) would land on the first row instead.
+	// status (beta, Unknown) would land on the first row instead.
 	for i := len(results) - 1; i >= 0; i-- {
 		next, _ = final.Update(results[i])
 		final = next.(picker.Model)

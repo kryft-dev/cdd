@@ -92,8 +92,11 @@ func (t theme) statusClusterOn(base lipgloss.Style, st git.Status, loaded bool) 
 	if !loaded {
 		return f(t.muted, glyphLoading)
 	}
-	// A Project's .git can still fail to read, or vanish after the Picker
-	// opened; git's answer is then as unknown as a timeout.
+	// A directory with no .git is not a failure: its row shows no marker.
+	if st.Kind == git.NotRepo {
+		return ""
+	}
+	// A repository whose git call failed or timed out is unknown.
 	if st.Kind != git.Found {
 		return f(t.red, glyphUnknown)
 	}
@@ -123,6 +126,9 @@ func (t theme) statusClusterOn(base lipgloss.Style, st git.Status, loaded bool) 
 // statusClusterWidth is the plain (uncoloured) width of statusCluster's
 // output, for column alignment.
 func statusClusterWidth(st git.Status, loaded bool) int {
+	if loaded && st.Kind == git.NotRepo {
+		return 0
+	}
 	if !loaded || st.Kind != git.Found {
 		return 1
 	}
@@ -176,9 +182,9 @@ func previewStatusWords(t theme, st git.Status, loaded bool) string {
 	}
 	switch st.Kind {
 	case git.NotRepo:
-		return t.fg(t.red).Render(glyphUnknown + " git could not read it")
+		return t.muted_().Render("not a git repo")
 	case git.Unknown:
-		return t.fg(t.red).Render(glyphUnknown + " git timed out")
+		return t.fg(t.red).Render(glyphUnknown + " git could not read it")
 	}
 
 	var parts []string
